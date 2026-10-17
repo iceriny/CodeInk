@@ -1,0 +1,46 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Engine: unit tests",
+      "type": "node",
+      "request": "launch",
+      "runtimeArgs": ["--test", "--test-concurrency=1"],
+      "program": "${workspaceFolder}/tests/engine_tests.mjs",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Engine: Shiki self-test",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/engine/bridge.mjs",
+      "args": ["--self-test"],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "skipFiles": ["<node_internals>/**"]
+    },
+    {
+      "name": "Python: build",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/build.py",
+      "cwd": "${workspaceFolder}",
+      "pythonArgs": ["-X", "utf8"],
+      "env": {"PYTHONUTF8": "1"},
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Python: verify package",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/tests/verify_package.py",
+      "cwd": "${workspaceFolder}",
+      "pythonArgs": ["-X", "utf8"],
+      "env": {"PYTHONUTF8": "1"},
+      "preLaunchTask": "CodeInk: build",
+      "console": "integratedTerminal"
+    }
+  ]
+}

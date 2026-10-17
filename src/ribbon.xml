@@ -1,0 +1,91 @@
+<customUI xmlns="http://schemas.microsoft.com/office/2006/01/customui" onLoad="OnRibbonLoad">
+  <ribbon>
+    <tabs>
+      <tab id="CodeInkTab" label="代码高亮" keytip="CI">
+        <group id="CodeInkApply" label="代码">
+          <button id="CodeInkFormat" label="高亮排版" size="large" imageMso="FontColorPicker" onAction="OnFormat" getEnabled="GetEnabled" screentip="更新所选代码的配色与排版" supertip="应用当前语言、主题、字体和背景。选中部分文字时，也会处理整个文本框或表格。组合代码块请使用“生成代码块”。" keytip="F" />
+          <button id="CodeInkTable" label="生成代码块" size="large" imageMso="TableInsert" onAction="OnTable" getEnabled="GetEnabled" supertip="将所选代码生成表格或组合文本框。勾选“替换原对象”可在原位置更新。" keytip="G" />
+          <button id="CodeInkClipboard" label="粘贴为代码" size="large" imageMso="Paste" onAction="OnClipboard" getEnabled="GetEnabled" supertip="将剪贴板纯文本生成代码块。开启“替换原对象”时，替换选中的文字对象；未选中时直接插入。" keytip="V" />
+          <menu id="CodeInkMore" label="更多操作" getEnabled="GetEnabled">
+            <button id="CodeInkHighlight" label="仅改配色" onAction="OnHighlight" getEnabled="GetEnabled" supertip="保留文字、字号和布局。启用主题字形时一并更新粗体、斜体和下划线。" />
+            <button id="CodeInkPlain" label="统一字色" onAction="OnPlain" getEnabled="GetEnabled" supertip="将文字统一为当前主题的基础字色。" />
+            <menuSeparator id="CodeInkThemeTools" title="主题" />
+            <button id="CodeInkImport" label="导入主题…" imageMso="FileOpen" onAction="OnImportTheme" getEnabled="GetEnabled" supertip="选择 VS Code JSON 或 JSONC 主题。请保留主题文件及其引用文件。" />
+          </menu>
+        </group>
+        <group id="CodeInkSyntax" label="语言与主题">
+          <comboBox id="CodeInkLanguage" label="语言" getText="GetLanguage" onChange="OnLanguage" getItemCount="LanguageCount" getItemLabel="LanguageLabel" sizeString="Cascadia Mono123" supertip="选择编程语言，或输入 cpp、python、js、ts 等语言名称或简称。Arduino 使用 C++ 语法。" getEnabled="GetEnabled" screentip="代码使用的编程语言" />
+          <comboBox id="CodeInkTheme" label="主题" getText="GetTheme" onChange="OnTheme" getItemCount="ThemeCount" getItemLabel="ThemeLabel" sizeString="Cascadia Mono123" supertip="选择代码配色。不使用背景时，建议选择与幻灯片底色相近的浅色或深色主题。" getEnabled="GetEnabled" />
+          <checkBox id="CodeInkBasicCleanup" label="自动整理代码" onAction="OnBasicCleanup" getPressed="GetBasicCleanup" getEnabled="GetEnabled" supertip="排版、生成或粘贴时整理空格与缩进。关闭可保留代码的原有间距。" keytip="A" />
+        </group>
+        <group id="CodeInkType" label="文字排版">
+          <comboBox id="CodeInkFontFamily" label="字体" getText="GetFontFamily" onChange="OnFontFamily" sizeString="Cascadia Mono" getEnabled="GetEnabled">
+            <item id="FontConsolas" label="Consolas" />
+            <item id="FontCascadia" label="Cascadia Mono" />
+            <item id="FontCourier" label="Courier New" />
+          </comboBox>
+          <comboBox id="CodeInkFontSize" label="字号" getText="GetFontSize" onChange="OnFontSize" sizeString="Cascadia Mono" getEnabled="GetEnabled" supertip="输入 6～96 磅。更改后点击“高亮排版”或“生成代码块”应用。">
+            <item id="Size12" label="12" />
+            <item id="Size16" label="16" />
+            <item id="Size18" label="18" />
+            <item id="Size20" label="20" />
+            <item id="Size24" label="24" />
+            <item id="Size28" label="28" />
+            <item id="Size32" label="32" />
+          </comboBox>
+          <comboBox id="CodeInkSpacing" label="行距" getText="GetSpacing" onChange="OnSpacing" sizeString="Cascadia Mono" supertip="输入倍数，例如 1.2 倍；或固定行距，例如 24 pt。更改后点击“高亮排版”或“生成代码块”应用。" getEnabled="GetEnabled">
+            <item id="Spacing1" label="1 倍" />
+            <item id="Spacing12" label="1.2 倍" />
+            <item id="Spacing15" label="1.5 倍" />
+            <item id="Spacing2" label="2 倍" />
+            <item id="Spacing24" label="24 pt" />
+          </comboBox>
+        </group>
+        <group id="CodeInkAppearance" label="外观">
+          <dropDown id="CodeInkBackgroundMode" label="背景" onAction="OnBackground" getSelectedItemIndex="GetBackground" sizeString="自定义颜色" getEnabled="GetBackgroundEnabled" supertip="设置代码背景。开启模拟窗口时使用窗口底色，可在“外观设置”中调整。">
+            <item id="BackgroundNone" label="无背景" />
+            <item id="BackgroundTheme" label="跟随主题" />
+            <item id="BackgroundCustom" label="自定义颜色" />
+          </dropDown>
+          <toggleButton id="CodeInkWindowFrame" onAction="OnWindowFrame" getPressed="GetWindowFrame" supertip="生成时添加窗口底板。更新已有代码块时，请勾选“替换原对象”后重新生成。" getEnabled="GetEnabled" imageMso="WindowNew" keytip="W" label="模拟窗口" />
+          <button id="CodeInkAppearanceSettings" label="外观设置…" onAction="OnAppearanceSettings" getEnabled="GetEnabled" supertip="调整背景色、主题字形，以及窗口底色、装饰按钮、阴影、内边距和圆角。" />
+        </group>
+        <group id="CodeInkNumbers" label="输出">
+          <dropDown id="CodeInkOutputMode" label="类型" onAction="OnOutputMode" getSelectedItemIndex="GetOutputMode" sizeString="组合文本框123" supertip="逐行表格可用 PowerPoint 表格工具编辑；组合文本框可与窗口底板组合，便于整体移动。两种输出的文字都可继续编辑。" getEnabled="GetEnabled">
+            <item id="OutputTable" label="逐行表格" />
+            <item id="OutputBoxes" label="组合文本框" />
+          </dropDown>
+          <box id="CodeInkNumberRow" boxStyle="horizontal">
+            <checkBox id="CodeInkLineNumbers" label="行号" onAction="OnNumbers" getPressed="GetNumbers" supertip="生成时在代码左侧显示行号。" getEnabled="GetEnabled" />
+            <editBox id="CodeInkFirstLine" label="起始" getText="GetFirstLine" onChange="OnFirstLine" getEnabled="GetNumbersEnabled" sizeString="100000" maxLength="6" supertip="第一行显示的行号，范围为 1～999999。" />
+          </box>
+          <box id="CodeInkOutputTools" boxStyle="horizontal">
+            <checkBox id="CodeInkReplace" label="替换原对象" onAction="OnReplace" getPressed="GetReplace" getEnabled="GetEnabled" supertip="生成成功后替换所选文字对象。关闭时保留原对象。" keytip="R" />
+            <menu id="CodeInkOutputOptions" label="选项" getEnabled="GetEnabled">
+            <menu id="CodeInkBordersMenu" label="表格边框" getEnabled="GetEnabled" supertip="设置生成表格的边框，或更新选中的表格。">
+              <checkBox id="CodeInkBorderVertical" label="行号分隔线" onAction="OnBorderVertical" getPressed="GetBorderVertical" getEnabled="GetEnabled" supertip="显示行号列与代码列之间的竖线。没有行号列时不显示。" />
+              <checkBox id="CodeInkBorderHorizontal" label="行间横线" onAction="OnBorderHorizontal" getPressed="GetBorderHorizontal" getEnabled="GetEnabled" supertip="显示相邻代码行之间的横线。" />
+              <checkBox id="CodeInkBorderOuter" label="表格外框" onAction="OnBorderOuter" getPressed="GetBorderOuter" getEnabled="GetEnabled" supertip="显示整张表格四周的边框。" />
+              <menuSeparator id="CodeInkBorderApplySeparator" />
+              <button id="CodeInkApplyBorders" onAction="OnBorders" getEnabled="GetEnabled" screentip="仅更新表格边框" supertip="只更新所选表格的边框，保留文字、配色、排版、背景和位置。" label="应用到选中表格" />
+            </menu>
+            <button id="CodeInkLayoutSettings" label="生成选项…" onAction="OnLayoutSettings" getEnabled="GetEnabled" supertip="设置表格读取方式、多选合并和自动字号范围。" />
+            </menu>
+          </box>
+        </group>
+        <group id="CodeInkHelp" label="CodeInk">
+          <menu id="CodeInkHelpMenu" label="帮助" size="large" imageMso="Help" getEnabled="GetEnabled">
+            <button id="CodeInkHelpButton" label="使用说明" onAction="OnHelp" getEnabled="GetEnabled" />
+            <button id="CodeInkStatusButton" label="运行状态" onAction="OnStatus" getEnabled="GetEnabled" supertip="查看最近操作、语言与主题目录和安装位置。" />
+            <menu id="CodeInkDiagnostics" label="问题排查" getEnabled="GetEnabled">
+            <checkBox id="CodeInkLogging" label="记录诊断日志" onAction="OnLogging" getPressed="GetLogging" getEnabled="GetEnabled" supertip="排查问题时开启，重现问题后可关闭。关闭后停止记录，已有日志保留。日志不包含代码正文。" />
+            <button id="CodeInkOpenLog" label="打开日志" onAction="OnOpenLog" getEnabled="GetEnabled" />
+            <button id="CodeInkClearLog" label="清理日志…" onAction="OnClearLog" getEnabled="GetEnabled" supertip="删除已有诊断日志，不改变日志开关。" />
+            </menu>
+          <button id="CodeInkAboutButton" label="关于" onAction="OnAbout" getEnabled="GetEnabled" imageMso="Info" supertip="查看 CodeInk 的版本和作者信息。" />
+          </menu>
+        </group>
+      </tab>
+    </tabs>
+  </ribbon>
+</customUI>

@@ -1,0 +1,23 @@
+{
+  "version": 4,
+  "configurations": [
+    {
+      "name": "Windows x64",
+      "compilerPath": "${env:LOCALAPPDATA}/Programs/LLVM/bin/clang++.exe",
+      "compilerArgs": ["--target=x86_64-pc-windows-msvc", "-ffreestanding"],
+      "intelliSenseMode": "windows-clang-x64",
+      "cppStandard": "c++17",
+      "includePath": ["${workspaceFolder}/src", "${workspaceFolder}/build"],
+      "compileCommands": "${workspaceFolder}/build/compile_commands-x64.json"
+    },
+    {
+      "name": "Windows x86",
+      "compilerPath": "${env:LOCALAPPDATA}/Programs/LLVM/bin/clang++.exe",
+      "compilerArgs": ["--target=i686-pc-windows-msvc", "-ffreestanding"],
+      "intelliSenseMode": "windows-clang-x86",
+      "cppStandard": "c++17",
+      "includePath": ["${workspaceFolder}/src", "${workspaceFolder}/build"],
+      "compileCommands": "${workspaceFolder}/build/compile_commands-x86.json"
+    }
+  ]
+}

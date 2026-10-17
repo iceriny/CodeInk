@@ -1,0 +1,52 @@
+{
+  "files.encoding": "utf8",
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/node_modules": true
+  },
+  "search.exclude": {
+    "build/**": true,
+    "dist/**": true,
+    "engine/node_modules/**": true,
+    "docs/reports/**": true
+  },
+  "files.watcherExclude": {
+    "**/build/**": true,
+    "**/dist/**": true,
+    "**/node_modules/**": true
+  },
+  "terminal.integrated.cwd": "${workspaceFolder}",
+  "terminal.integrated.env.windows": {
+    "PYTHONUTF8": "1",
+    "PATH": "${env:LOCALAPPDATA}\\Programs\\LLVM\\bin;${env:ProgramFiles}\\LLVM\\bin;${env:PATH}"
+  },
+  "python.defaultInterpreterPath": "python",
+  "python.analysis.extraPaths": ["${workspaceFolder}"],
+  "C_Cpp.default.cppStandard": "c++17",
+  "C_Cpp.clang_format_style": "LLVM",
+  "cmake.configureOnOpen": false,
+  "[cpp]": {
+    "editor.defaultFormatter": "ms-vscode.cpptools",
+    "editor.formatOnSave": false
+  },
+  "[python]": {
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": false,
+    "editor.tabSize": 4
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": false,
+    "editor.tabSize": 2
+  },
+  "[json]": {
+    "editor.defaultFormatter": "vscode.json-language-features",
+    "editor.tabSize": 2
+  },
+  "[markdown]": {
+    "files.trimTrailingWhitespace": false
+  }
+}

@@ -1,0 +1,30 @@
+CodeInk 0.3.1 - Third-party components and notices
+
+This small bootstrap EXE contains CodeInk's original native COM add-in,
+JavaScript bridge, documentation and installer code. It does NOT contain the
+Node.js runtime, Shiki package, or jsonc-parser package bodies. It retrieves
+those from their official distribution channels with user consent at setup.
+
+Direct runtime dependencies:
+- Shiki 4.4.3. https://shiki.style/ ; https://github.com/shikijs/shiki
+  Project license: MIT. Authors include Pine Wu, Anthony Fu and contributors.
+  Includes its upstream TextMate language/theme ecosystem and regular expression
+  engine dependencies. Individual bundled grammars/themes may have additional
+  third-party notices; their distributed license files must be retained.
+- jsonc-parser 3.3.1. https://github.com/microsoft/node-jsonc-parser
+  Project license: MIT. Copyright Microsoft Corporation and contributors.
+- Node.js v24.21.0 Windows x64 distribution. https://nodejs.org/
+  Node.js carries an MIT license and notices for bundled third-party components;
+  npm and other components retain their own distributed license notices.
+
+The installer preserves the downloaded packages and runtime license/notice
+files. Consult engine/node_modules/<package>/LICENSE* and runtime/
+node-v24.21.0-win-x64/LICENSE for the full notices applicable to the actual
+installed copies. package-lock.json, generated at installation, records the
+resolved transitive dependency graph and registry integrity metadata.
+
+No font files are redistributed. PowerPoint, Windows and VS Code are trademarks
+of their respective owners. This is an independent experimental add-in, not a
+Microsoft, Shiki or Node.js endorsed product.
+
+CodeInk's original code is licensed separately in LICENSE.txt.

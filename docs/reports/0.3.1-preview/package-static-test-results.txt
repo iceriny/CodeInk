@@ -1,0 +1,2 @@
+PASS: PE architectures / system-only imports / COM exports / manifests / exact payloads / Ribbon callback mapping
+{"payloads": "all exact embedded binaries and documentation match", "ribbon_ids": 86, "ribbon_callbacks": 75, "dispatch_methods": 81, "ribbon_groups": 7, "release_checks": "border controls / window gating / About attribution / opt-in logging wiring", "authenticode": "unsigned", "windows_runtime": "NOT TESTED"}

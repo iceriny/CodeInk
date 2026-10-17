@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    "ms-vscode.cpptools",
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "ms-python.debugpy",
+    "charliermarsh.ruff",
+    "ms-vscode.powershell",
+    "editorconfig.editorconfig",
+    "esbenp.prettier-vscode"
+  ]
+}

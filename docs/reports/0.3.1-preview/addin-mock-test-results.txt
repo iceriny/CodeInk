@@ -1,0 +1,10 @@
+PASS 01: fresh install defaults: vertical-only borders and zero diagnostic log writes
+PASS 02: actual GetCustomUI supplies consolidated window toggle and the renamed About control
+PASS 03: window dependent controls gate correctly; off/on retains padding and radius
+PASS 04: border toggles stay independent and survive disabling in text-box output mode
+PASS 05: real native logger never opens files when off; opt-in and immediate disable work
+PASS 06: preferences round-trip through the registry code after reconnecting
+PASS 07: About callback displays Iceriny, version, architecture and current logging state
+PASS 08: border-only Ribbon action dispatches the dedicated operation, not format/rebuild
+PASS 09: open/clear log actions do not enable logging or write new log records
+9 Ribbon/preference/logging simulations passed. NOT a Windows/PowerPoint UI test.

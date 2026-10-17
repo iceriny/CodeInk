@@ -1,0 +1,14 @@
+build/
+dist/
+__pycache__/
+*.log
+node_modules/
+.venv/
+*.py[cod]
+engine/languages.tsv
+engine/themes.tsv
+engine/catalog-summary.json
+engine/self-test-passed.txt
+engine/engine-error.txt
+.DS_Store
+Thumbs.db

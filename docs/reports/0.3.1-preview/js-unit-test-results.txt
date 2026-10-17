@@ -1,0 +1,142 @@
+TAP version 13
+# Subtest: UTF-16 request round trip preserves Chinese, emoji, tabs, line endings
+ok 1 - UTF-16 request round trip preserves Chinese, emoji, tabs, line endings
+  ---
+  duration_ms: 2.531007
+  type: 'test'
+  ...
+# Subtest: reject truncated request
+ok 2 - reject truncated request
+  ---
+  duration_ms: 0.413009
+  type: 'test'
+  ...
+# Subtest: reject wrong protocol magic or trailing bytes
+ok 3 - reject wrong protocol magic or trailing bytes
+  ---
+  duration_ms: 0.288164
+  type: 'test'
+  ...
+# Subtest: reject invalid batch and per-object limits
+ok 4 - reject invalid batch and per-object limits
+  ---
+  duration_ms: 0.363365
+  type: 'test'
+  ...
+# Subtest: reject aggregate limit
+ok 5 - reject aggregate limit
+  ---
+  duration_ms: 1.088293
+  type: 'test'
+  ...
+# Subtest: CRLF and PowerPoint soft breaks map to exact original UTF-16 offsets
+ok 6 - CRLF and PowerPoint soft breaks map to exact original UTF-16 offsets
+  ---
+  duration_ms: 0.972202
+  type: 'test'
+  ...
+# Subtest: mapped token offsets do not drift after CRLF or emoji
+ok 7 - mapped token offsets do not drift after CRLF or emoji
+  ---
+  duration_ms: 0.620023
+  type: 'test'
+  ...
+# Subtest: coalesces adjacent identical runs and treats unspecified style as zero
+ok 8 - coalesces adjacent identical runs and treats unspecified style as zero
+  ---
+  duration_ms: 0.133566
+  type: 'test'
+  ...
+# Subtest: validates token content and complete line boundaries
+ok 9 - validates token content and complete line boundaries
+  ---
+  duration_ms: 0.451224
+  type: 'test'
+  ...
+# Subtest: empty text, blank lines and trailing newline
+ok 10 - empty text, blank lines and trailing newline
+  ---
+  duration_ms: 0.349204
+  type: 'test'
+  ...
+# Subtest: RGB formats and alpha blend
+ok 11 - RGB formats and alpha blend
+  ---
+  duration_ms: 0.160967
+  type: 'test'
+  ...
+# Subtest: success response records ranges and theme colors
+ok 12 - success response records ranges and theme colors
+  ---
+  duration_ms: 0.201818
+  type: 'test'
+  ...
+# Subtest: error text is bounded
+ok 13 - error text is bounded
+  ---
+  duration_ms: 0.213594
+  type: 'test'
+  ...
+# Subtest: theme inheritance merges colors and token rules without extension execution
+ok 14 - theme inheritance merges colors and token rules without extension execution
+  ---
+  duration_ms: 2.252026
+  type: 'test'
+  ...
+# Subtest: rejects include cycles and absolute references
+ok 15 - rejects include cycles and absolute references
+  ---
+  duration_ms: 0.924942
+  type: 'test'
+  ...
+# Subtest: rejects empty-token or invalid JSON theme and external plist
+ok 16 - rejects empty-token or invalid JSON theme and external plist
+  ---
+  duration_ms: 0.552894
+  type: 'test'
+  ...
+# Subtest: accepts UTF-8 BOM and produces stable theme identity
+ok 17 - accepts UTF-8 BOM and produces stable theme identity
+  ---
+  duration_ms: 0.578692
+  type: 'test'
+  ...
+# Subtest: Unicode LS/PS map to line breaks without UTF-16 offset drift
+ok 18 - Unicode LS/PS map to line breaks without UTF-16 offset drift
+  ---
+  duration_ms: 0.219323
+  type: 'test'
+  ...
+# Subtest: diagnostics default off: neither new files nor existing files are written
+ok 19 - diagnostics default off: neither new files nor existing files are written
+  ---
+  duration_ms: 0.400971
+  type: 'test'
+  ...
+# Subtest: diagnostics enabled: records category, never source, error message or stack
+ok 20 - diagnostics enabled: records category, never source, error message or stack
+  ---
+  duration_ms: 0.878083
+  type: 'test'
+  ...
+# Subtest: diagnostics can be turned off after being enabled without deleting prior data
+ok 21 - diagnostics can be turned off after being enabled without deleting prior data
+  ---
+  duration_ms: 0.305851
+  type: 'test'
+  ...
+# Subtest: diagnostic I/O failure is nonfatal and untrusted error codes are not persisted
+ok 22 - diagnostic I/O failure is nonfatal and untrusted error codes are not persisted
+  ---
+  duration_ms: 0.389534
+  type: 'test'
+  ...
+1..22
+# tests 22
+# suites 0
+# pass 22
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 83.136177

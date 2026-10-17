@@ -1,0 +1,5 @@
+PASS 1: real bridge outer failure does not create a diagnostic file by default
+PASS 2: explicit enable logs outer failure; disabling stops further writes
+PASS 3: missing-dependency request returns the normal error response with diagnostics off
+PASS 4: request diagnostics opt in without leaking source, paths or stack
+4 real bridge CLI error-path checks passed. Shiki highlighting and Windows were NOT executed.

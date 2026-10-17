@@ -1,0 +1,1 @@
+PASS: UTF-16 normalization, four-space tabs, line count/width, number-column detection, decimal settings, line spans, dynamic gutters, window geometry; 49 mixed-text cases.

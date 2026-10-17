@@ -1,0 +1,21 @@
+PASS 01: native N-row table preserves interior and final blank rows
+PASS 02: gutter uses measured font width and 98-to-100 digit boundary
+PASS 03: full-document tokens map into row-local UTF-16 ranges and table reads back exactly
+PASS 04: native table stays native; only frame and buttons are grouped, cells transparent
+PASS 05: editable row text boxes and frame truly group; child selection and stateless readback work
+PASS 06: window off generates only editable code, no decorative background or buttons
+PASS 07: buttons and shadow can be disabled; window color is independent
+PASS 08: frame resizes to actual native table height instead of covering or clipping it
+PASS 09: cancel removes newly created table and frame; original source stays intact
+PASS 10: group failure cleans pending editable shapes without deleting the source
+PASS 11: only explicitly selected table-plus-window is paired for replacement; reread clears stale pairing
+PASS 12: window can be removed by stateless rebuild while keeping editable code and blank rows
+PASS 13: default border is only the gutter/code separator; no outer/horizontal/diagonal borders
+PASS 14: horizontal-only uses shared interior row edges without drawing an outer frame
+PASS 15: outer-only is exactly the four table perimeter edges
+PASS 16: all 8 border combinations agree across neighbouring cells; toggles are independent
+PASS 17: without line numbers, the vertical toggle does not create a stray outer border
+PASS 18: single-row/single-column tables distinguish internal edges from the perimeter
+PASS 19: border-only update preserves text, syntax colors, font size, fill, dimensions and window
+PASS 20: normal highlighter formatting also honours the selected table-border settings
+20 renderer integration simulations passed. NOT a Windows/PowerPoint runtime test.

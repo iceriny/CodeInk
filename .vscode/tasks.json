@@ -1,0 +1,202 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "CodeInk: doctor",
+      "type": "process",
+      "command": "python",
+      "args": [
+        "-X",
+        "utf8",
+        "${workspaceFolder}/dev.py",
+        "doctor"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "CodeInk: deps",
+      "type": "process",
+      "command": "python",
+      "args": [
+        "-X",
+        "utf8",
+        "${workspaceFolder}/dev.py",
+        "deps"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "CodeInk: build",
+      "type": "process",
+      "command": "python",
+      "args": [
+        "-X",
+        "utf8",
+        "${workspaceFolder}/dev.py",
+        "build"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "CodeInk: dll",
+      "type": "process",
+      "command": "python",
+      "args": [
+        "-X",
+        "utf8",
+        "${workspaceFolder}/dev.py",
+        "dll"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "CodeInk: test",
+      "type": "process",
+      "command": "python",
+      "args": [
+        "-X",
+        "utf8",
+        "${workspaceFolder}/dev.py",
+        "test"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "CodeInk: self-test",
+      "type": "process",
+      "command": "python",
+      "args": [
+        "-X",
+        "utf8",
+        "${workspaceFolder}/dev.py",
+        "self-test"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "CodeInk: verify",
+      "type": "process",
+      "command": "python",
+      "args": [
+        "-X",
+        "utf8",
+        "${workspaceFolder}/dev.py",
+        "verify"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "dependsOn": "CodeInk: build"
+    },
+    {
+      "label": "CodeInk: mock",
+      "type": "process",
+      "command": "python",
+      "args": [
+        "-X",
+        "utf8",
+        "${workspaceFolder}/dev.py",
+        "mock"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    },
+    {
+      "label": "CodeInk: sanitize",
+      "type": "process",
+      "command": "python",
+      "args": [
+        "-X",
+        "utf8",
+        "${workspaceFolder}/dev.py",
+        "sanitize"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": [
+        "$gcc"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      }
+    }
+  ]
+}

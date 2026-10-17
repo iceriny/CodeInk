@@ -1,0 +1,388 @@
+{
+  "CodeInk.x86.dll": {
+    "machine": "0x14c",
+    "bytes": 107520,
+    "sha256": "6014d1b3d85bc13a12972011225349f6023b4f4e14ed3b66a01295e00edff270",
+    "imports": {
+      "USER32.dll": [
+        "CloseClipboard",
+        "CreateWindowExW",
+        "DefWindowProcW",
+        "DestroyWindow",
+        "DispatchMessageW",
+        "EnableWindow",
+        "GetClipboardData",
+        "GetForegroundWindow",
+        "MessageBoxW",
+        "OpenClipboard",
+        "PeekMessageW",
+        "RegisterClassW",
+        "SendMessageW",
+        "SetWindowTextW",
+        "ShowWindow",
+        "TranslateMessage",
+        "UnregisterClassW",
+        "UpdateWindow"
+      ],
+      "GDI32.dll": [
+        "GetStockObject"
+      ],
+      "COMDLG32.dll": [
+        "GetOpenFileNameW"
+      ],
+      "ADVAPI32.dll": [
+        "RegCloseKey",
+        "RegCreateKeyExW",
+        "RegDeleteKeyExW",
+        "RegDeleteTreeW",
+        "RegOpenKeyExW",
+        "RegQueryValueExW",
+        "RegSetValueExW"
+      ],
+      "OLEAUT32.dll": [
+        "SafeArrayCreateVector",
+        "SafeArrayPutElement",
+        "SysAllocString",
+        "SysAllocStringLen",
+        "SysFreeString",
+        "SysStringLen",
+        "VariantClear",
+        "VariantCopy"
+      ],
+      "SHELL32.dll": [
+        "ShellExecuteW"
+      ],
+      "KERNEL32.dll": [
+        "CloseHandle",
+        "CreateFileW",
+        "CreateProcessW",
+        "DeleteFileW",
+        "DisableThreadLibraryCalls",
+        "GetEnvironmentVariableW",
+        "GetExitCodeProcess",
+        "GetFileAttributesW",
+        "GetFileSize",
+        "GetLastError",
+        "GetModuleFileNameW",
+        "GetModuleHandleW",
+        "GetProcessHeap",
+        "GetTempFileNameW",
+        "GetTempPathW",
+        "GetTickCount",
+        "GlobalLock",
+        "GlobalSize",
+        "GlobalUnlock",
+        "HeapAlloc",
+        "HeapFree",
+        "ReadFile",
+        "SetFilePointer",
+        "TerminateProcess",
+        "WaitForSingleObject",
+        "WideCharToMultiByte",
+        "WriteFile"
+      ]
+    }
+  },
+  "CodeInk.x64.dll": {
+    "machine": "0x8664",
+    "bytes": 117248,
+    "sha256": "4f0b9c0be43a085d5a75894097d1c646034c27d20e5a60320216dc68426567cf",
+    "imports": {
+      "USER32.dll": [
+        "CloseClipboard",
+        "CreateWindowExW",
+        "DefWindowProcW",
+        "DestroyWindow",
+        "DispatchMessageW",
+        "EnableWindow",
+        "GetClipboardData",
+        "GetForegroundWindow",
+        "MessageBoxW",
+        "OpenClipboard",
+        "PeekMessageW",
+        "RegisterClassW",
+        "SendMessageW",
+        "SetWindowTextW",
+        "ShowWindow",
+        "TranslateMessage",
+        "UnregisterClassW",
+        "UpdateWindow"
+      ],
+      "GDI32.dll": [
+        "GetStockObject"
+      ],
+      "COMDLG32.dll": [
+        "GetOpenFileNameW"
+      ],
+      "ADVAPI32.dll": [
+        "RegCloseKey",
+        "RegCreateKeyExW",
+        "RegDeleteKeyExW",
+        "RegDeleteTreeW",
+        "RegOpenKeyExW",
+        "RegQueryValueExW",
+        "RegSetValueExW"
+      ],
+      "OLEAUT32.dll": [
+        "SafeArrayCreateVector",
+        "SafeArrayPutElement",
+        "SysAllocString",
+        "SysAllocStringLen",
+        "SysFreeString",
+        "SysStringLen",
+        "VariantClear",
+        "VariantCopy"
+      ],
+      "SHELL32.dll": [
+        "ShellExecuteW"
+      ],
+      "KERNEL32.dll": [
+        "CloseHandle",
+        "CreateFileW",
+        "CreateProcessW",
+        "DeleteFileW",
+        "DisableThreadLibraryCalls",
+        "GetEnvironmentVariableW",
+        "GetExitCodeProcess",
+        "GetFileAttributesW",
+        "GetFileSize",
+        "GetLastError",
+        "GetModuleFileNameW",
+        "GetModuleHandleW",
+        "GetProcessHeap",
+        "GetTempFileNameW",
+        "GetTempPathW",
+        "GetTickCount",
+        "GlobalLock",
+        "GlobalSize",
+        "GlobalUnlock",
+        "HeapAlloc",
+        "HeapFree",
+        "ReadFile",
+        "SetFilePointer",
+        "TerminateProcess",
+        "WaitForSingleObject",
+        "WideCharToMultiByte",
+        "WriteFile"
+      ]
+    }
+  },
+  "CodeInk.Check32.exe": {
+    "machine": "0x14c",
+    "bytes": 23552,
+    "sha256": "7b2410a48c2a6735aecf4c6018c05363efe3610c0d11e646d54f758ddcd2ad5d",
+    "imports": {
+      "USER32.dll": [
+        "CreateWindowExW",
+        "DefWindowProcW",
+        "DestroyWindow",
+        "DispatchMessageW",
+        "EnableWindow",
+        "PeekMessageW",
+        "RegisterClassW",
+        "SendMessageW",
+        "SetWindowTextW",
+        "ShowWindow",
+        "TranslateMessage",
+        "UnregisterClassW",
+        "UpdateWindow"
+      ],
+      "GDI32.dll": [
+        "GetStockObject"
+      ],
+      "ADVAPI32.dll": [
+        "RegCloseKey",
+        "RegCreateKeyExW",
+        "RegDeleteKeyExW",
+        "RegDeleteTreeW",
+        "RegOpenKeyExW",
+        "RegQueryValueExW",
+        "RegSetValueExW"
+      ],
+      "OLEAUT32.dll": [
+        "SysAllocString",
+        "SysFreeString",
+        "SysStringLen",
+        "VariantClear"
+      ],
+      "OLE32.dll": [
+        "CoCreateInstance",
+        "CoInitializeEx",
+        "CoUninitialize"
+      ],
+      "KERNEL32.dll": [
+        "CloseHandle",
+        "CreateFileW",
+        "CreateProcessW",
+        "DeleteFileW",
+        "ExitProcess",
+        "GetEnvironmentVariableW",
+        "GetExitCodeProcess",
+        "GetFileSize",
+        "GetLastError",
+        "GetModuleHandleW",
+        "GetProcessHeap",
+        "GetTempFileNameW",
+        "GetTempPathW",
+        "GetTickCount",
+        "HeapAlloc",
+        "HeapFree",
+        "ReadFile",
+        "SetFilePointer",
+        "TerminateProcess",
+        "WaitForSingleObject",
+        "WideCharToMultiByte",
+        "WriteFile"
+      ]
+    }
+  },
+  "CodeInk.Check64.exe": {
+    "machine": "0x8664",
+    "bytes": 27136,
+    "sha256": "5867448f56eecc1ee96957232551adfcf761a61adfa7191845a788bc8d5de01d",
+    "imports": {
+      "USER32.dll": [
+        "CreateWindowExW",
+        "DefWindowProcW",
+        "DestroyWindow",
+        "DispatchMessageW",
+        "EnableWindow",
+        "PeekMessageW",
+        "RegisterClassW",
+        "SendMessageW",
+        "SetWindowTextW",
+        "ShowWindow",
+        "TranslateMessage",
+        "UnregisterClassW",
+        "UpdateWindow"
+      ],
+      "GDI32.dll": [
+        "GetStockObject"
+      ],
+      "ADVAPI32.dll": [
+        "RegCloseKey",
+        "RegCreateKeyExW",
+        "RegDeleteKeyExW",
+        "RegDeleteTreeW",
+        "RegOpenKeyExW",
+        "RegQueryValueExW",
+        "RegSetValueExW"
+      ],
+      "OLEAUT32.dll": [
+        "SysAllocString",
+        "SysFreeString",
+        "SysStringLen",
+        "VariantClear"
+      ],
+      "OLE32.dll": [
+        "CoCreateInstance",
+        "CoInitializeEx",
+        "CoUninitialize"
+      ],
+      "KERNEL32.dll": [
+        "CloseHandle",
+        "CreateFileW",
+        "CreateProcessW",
+        "DeleteFileW",
+        "ExitProcess",
+        "GetEnvironmentVariableW",
+        "GetExitCodeProcess",
+        "GetFileSize",
+        "GetLastError",
+        "GetModuleHandleW",
+        "GetProcessHeap",
+        "GetTempFileNameW",
+        "GetTempPathW",
+        "GetTickCount",
+        "HeapAlloc",
+        "HeapFree",
+        "ReadFile",
+        "SetFilePointer",
+        "TerminateProcess",
+        "WaitForSingleObject",
+        "WideCharToMultiByte",
+        "WriteFile"
+      ]
+    }
+  },
+  "CodeInk-Setup-0.3.1-preview-online.exe": {
+    "machine": "0x14c",
+    "bytes": 359936,
+    "sha256": "cf60d463536abf49adb7f0b8801939601fe43f6b3ed12aa92af36f61773a742a",
+    "imports": {
+      "USER32.dll": [
+        "CreateWindowExW",
+        "DefWindowProcW",
+        "DestroyWindow",
+        "DispatchMessageW",
+        "EnableWindow",
+        "MessageBoxW",
+        "PeekMessageW",
+        "RegisterClassW",
+        "SendMessageW",
+        "SetWindowTextW",
+        "ShowWindow",
+        "TranslateMessage",
+        "UnregisterClassW",
+        "UpdateWindow"
+      ],
+      "GDI32.dll": [
+        "GetStockObject"
+      ],
+      "ADVAPI32.dll": [
+        "RegCloseKey",
+        "RegCreateKeyExW",
+        "RegDeleteKeyExW",
+        "RegDeleteTreeW",
+        "RegOpenKeyExW",
+        "RegQueryValueExW",
+        "RegSetValueExW"
+      ],
+      "KERNEL32.dll": [
+        "CloseHandle",
+        "CopyFileW",
+        "CreateDirectoryW",
+        "CreateFileW",
+        "CreateProcessW",
+        "CreateToolhelp32Snapshot",
+        "DeleteFileW",
+        "ExitProcess",
+        "GetCommandLineW",
+        "GetCurrentProcessId",
+        "GetEnvironmentVariableW",
+        "GetExitCodeProcess",
+        "GetFileAttributesW",
+        "GetFileSize",
+        "GetLastError",
+        "GetModuleFileNameW",
+        "GetModuleHandleW",
+        "GetNativeSystemInfo",
+        "GetProcessHeap",
+        "GetTempPathW",
+        "GetTickCount",
+        "HeapAlloc",
+        "HeapFree",
+        "OpenProcess",
+        "Process32FirstW",
+        "Process32NextW",
+        "ReadFile",
+        "RemoveDirectoryW",
+        "Sleep",
+        "TerminateProcess",
+        "WaitForSingleObject",
+        "WideCharToMultiByte",
+        "WriteFile"
+      ]
+    }
+  },
+  "static_checks": {
+    "payloads": "all exact embedded binaries and documentation match",
+    "ribbon_ids": 86,
+    "ribbon_callbacks": 75,
+    "dispatch_methods": 81,
+    "ribbon_groups": 7,
+    "release_checks": "border controls / window gating / About attribution / opt-in logging wiring",
+    "authenticode": "unsigned",
+    "windows_runtime": "NOT TESTED"
+  }
+}
