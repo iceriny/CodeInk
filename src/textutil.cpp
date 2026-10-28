@@ -24,22 +24,6 @@ bool parseDecimal(const Ch*s,float& value,int& end){
     if(!digits)return false;while(s[i]==' ')++i;value=v;end=i;return true;
 }
 }
-namespace codeink {
-bool choosePosition(const Rect* used,int count,float width,float height,float sw,float sh,float px,float py,float& x,float& y){
-    const float margin=12, gap=10;
-    if(width<=0||height<=0||width>sw-2*margin||height>sh-2*margin)return false;
-    auto free=[&](float a,float b){
-        if(a<margin||b<margin||a+width>sw-margin+0.1f||b+height>sh-margin+0.1f)return false;
-        for(int i=0;i<count;++i){const Rect&r=used[i];if(a<r.x+r.w+gap&&a+width+gap>r.x&&b<r.y+r.h+gap&&b+height+gap>r.y)return false;}
-        x=a;y=b;return true;
-    };
-    if(free(px,py))return true;
-    for(int i=0;i<count;++i){const Rect&r=used[i];if(free(r.x+r.w+gap,r.y)||free(r.x,r.y+r.h+gap))return true;}
-    if(free(margin,margin)||free(sw-margin-width,sh-margin-height))return true;
-    for(float b=margin;b+height<=sh-margin+0.1f;b+=16)for(float a=margin;a+width<=sw-margin+0.1f;a+=16)if(free(a,b))return true;
-    return false;
-}
-}
 
 namespace codeink {
 int splitLines(const Ch*s,int n,LineSpan*out,int capacity){

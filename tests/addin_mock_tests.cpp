@@ -50,7 +50,7 @@ void Progress::text(const wchar_t*){}
 bool Progress::pump(){return true;}
 HRESULT invokeEngine(const Options&,const BSTR*,int,HighlightResult&,Progress*){return E_FAIL;}
 static int settingsOpened=0;static bool settingsAppearance=false;
-bool editSettings(HWND,HINSTANCE,Options& o,bool appearance){++settingsOpened;settingsAppearance=appearance;o.windowPadding=18;o.autoFitMin=10;o.autoFitMax=24;o.basicCleanup=false;return true;}
+bool editSettings(HWND,HINSTANCE,Options& o,bool appearance){++settingsOpened;settingsAppearance=appearance;o.windowPadding=18;o.basicCleanup=false;return true;}
 static Action lastAction=Action::Plain;static int actions=0;
 HRESULT executeAction(IDispatch*,const Options&,Action action,wchar_t*status,int sc,wchar_t*,int,Progress&){lastAction=action;++actions;copystr(status,sc,L"Mock action completed");return S_OK;}
 struct App:IDispatch{
@@ -66,7 +66,7 @@ static void change(Addin&a,const wchar_t*name,Value val,bool dropdown=false){VAR
 static bool checked(Addin&a,const wchar_t*name){Value v=get(a,name);assert(v.v.vt==VT_BOOL);return v.v.boolVal!=0;}
 static int passed=0;static void pass(const char*s){std::printf("PASS %02d: %s\n",++passed,s);}
 int main(){
-    regNumber(CONFIG_KEY,L"AutoFit",0);
+    regNumber(CONFIG_KEY,L"AutoFit",1);regNumber(CONFIG_KEY,L"AutoFitMin100",1200);regNumber(CONFIG_KEY,L"AutoFitMax100",1400);
     App app;Addin a;assert(a.OnConnection(&app,0,nullptr,nullptr)==S_OK);
     assert(checked(a,L"GetBorderVertical")&&!checked(a,L"GetBorderHorizontal")&&!checked(a,L"GetBorderOuter")&&!checked(a,L"GetLogging"));
     assert(logWrites==0&&logOpens==0);pass("fresh install defaults: vertical-only borders and zero diagnostic log writes");
@@ -99,7 +99,7 @@ int main(){
         assert(!checked(reloaded,L"GetLogging")&&!checked(reloaded,L"GetBorderVertical")&&checked(reloaded,L"GetBorderHorizontal")&&checked(reloaded,L"GetWindowFrame"));
         Value v=get(reloaded,L"GetWindowPadding");assert(u(v.v.bstrVal)==u"22.5");pass("preferences round-trip through the registry code after reconnecting");
     }
-    action(a,L"OnAbout");assert(lastTitle==u"关于 CodeInk"&&lastMessage.find(u"作者：Iceriny")!=U::npos&&lastMessage.find(u"1.0.0")!=U::npos&&lastMessage.find(u"首次安装")==U::npos&&lastMessage.find(u"新增")==U::npos&&lastMessage.find(u"日志")==U::npos);
+    action(a,L"OnAbout");assert(lastTitle==u"关于 CodeInk"&&lastMessage.find(u"作者：Iceriny")!=U::npos&&lastMessage.find(u"1.0.1")!=U::npos&&lastMessage.find(u"首次安装")==U::npos&&lastMessage.find(u"新增")==U::npos&&lastMessage.find(u"日志")==U::npos);
     pass("About shows product/version/author without setup notes or runtime diagnostics");
     action(a,L"OnBorders");assert(actions==1&&lastAction==Action::Borders);pass("border-only Ribbon action dispatches the dedicated operation, not format/rebuild");
     action(a,L"OnOpenLog");assert(lastMessage.find(u"没有可打开")!=U::npos&&!diagnosticLogging());
@@ -119,13 +119,11 @@ int main(){
     action(a,L"OnLayoutSettings");assert(settingsOpened==2&&!settingsAppearance);
     {Value v=get(a,L"GetWindowPadding");assert(u(v.v.bstrVal)==u"18");}
     assert(checked(a,L"GetEnabled"));pass("settings commands commit preferences and restore Ribbon availability");
-    assert(checked(a,L"GetAutoFit"));
-    assert(readNumber(CONFIG_KEY,L"AutoFitMin100",0)==1000&&readNumber(CONFIG_KEY,L"AutoFitMax100",0)==2400);
-    Addin withLimits;assert(withLimits.OnConnection(&app,0,nullptr,nullptr)==S_OK);
-    change(withLimits,L"OnFontSize",Value::text(L"60"));
-    {Value v=get(withLimits,L"GetFontSize");assert(u(v.v.bstrVal)==u"60");}
-    assert(readNumber(CONFIG_KEY,L"AutoFitMin100",0)==1000&&readNumber(CONFIG_KEY,L"AutoFitMax100",0)==2400);
+    Addin reconnected;assert(reconnected.OnConnection(&app,0,nullptr,nullptr)==S_OK);
+    change(reconnected,L"OnFontSize",Value::text(L"60"));
+    {Value v=get(reconnected,L"GetFontSize");assert(u(v.v.bstrVal)==u"60");}
+    assert(readNumber(CONFIG_KEY,L"FontSize100",0)==6000);
     assert(readNumber(CONFIG_KEY,L"BasicCleanup",9)==0);
-    pass("automatic limits persist independently of manual font size and supersede the legacy off flag");
+    pass("explicit font size persists after reconnect despite legacy automatic-size preferences");
     std::printf("%d Ribbon/preference/logging simulations passed. NOT a Windows/PowerPoint UI test.\n",passed);
 }

@@ -308,18 +308,11 @@ static HRESULT recolor(Capture&cap,const HighlightItem&item,const HighlightResul
     }
     return S_OK;
 }
-static HRESULT getSlide(IDispatch*app,Ref&shapes,float&width,float&height){
-    Ref pres,setup,w,view,slide;HRESULT hr=object(app,L"ActivePresentation",pres);if(!failed(hr))hr=object(pres,L"PageSetup",setup);if(!failed(hr))hr=object(app,L"ActiveWindow",w);if(!failed(hr))hr=object(w,L"View",view);if(!failed(hr))hr=object(view,L"Slide",slide);if(!failed(hr))hr=object(slide,L"Shapes",shapes);if(failed(hr))return hr;width=getFloat(setup,L"SlideWidth",960);height=getFloat(setup,L"SlideHeight",540);return S_OK;
-}
-static bool collectObstacles(IDispatch*shapes,float sw,float sh,Items<Rect>&rects,int&used){
-    int n=getInt(shapes,L"Count");used=0;if(n<0||n>512||!rects.make(n))return false;
-    for(int i=0;i<n;++i){Ref shape;Value index=Value::integer(i+1);if(failed(object(shapes,L"Item",shape,1,&index)))return false;
-        float w=getFloat(shape,L"Width"),h=getFloat(shape,L"Height");if(w<=0||h<=0)continue;
-        bool hasText=false;Ref frame;if(getInt(shape,L"HasTextFrame")&&!failed(object(shape,L"TextFrame",frame)))hasText=getInt(frame,L"HasText")!=0;
-        if(!hasText&&!getInt(shape,L"HasTable")&&w>=sw-24&&h>=sh-24)continue;
-        rects[used++]={getFloat(shape,L"Left"),getFloat(shape,L"Top"),w,h};
-    }
-    return true;
+static HRESULT getSlide(IDispatch*app,Ref&shapes){
+    Ref window,view,slide;HRESULT hr=object(app,L"ActiveWindow",window);
+    if(!failed(hr))hr=object(window,L"View",view);
+    if(!failed(hr))hr=object(view,L"Slide",slide);
+    if(!failed(hr))hr=object(slide,L"Shapes",shapes);return hr;
 }
 // Temporary objects are tracked until grouped. Failure removes ONLY newly created
 // output; source deletion is deferred until the entire batch succeeds.
@@ -389,7 +382,7 @@ static HRESULT addTextBox(IDispatch*shapes,float left,float top,float width,floa
 static float measureNumber(IDispatch*shapes,int last,const Options&o,float fs){
     Ref shape,range,font,frame;float width=-1;
     // A single off-slide, short-lived text box measures the installed Office font.
-    // It is removed before free-space placement, and never becomes part of output.
+    // It is removed immediately after measurement.
     if(!failed(addTextBox(shapes,-10000,-10000,1000,200,shape))){
         wchar_t text[24];number(text,last);
         if(!failed(shapeRange(shape,range))&&!failed(put(range,L"Text",Value::text(text)))&&!failed(object(range,L"Font",font))){
@@ -422,51 +415,19 @@ static HRESULT writeNumber(IDispatch*shape,int value,const HighlightResult&color
     if(failed(hr=put(range,L"Text",Value::text(text)))||failed(hr=typography(shape,range,o,fs,true,true,colors,transparent)))return hr;
     return fontStyle(range,0);
 }
-static HRESULT createBlock(IDispatch*shapes,Capture&source,const HighlightItem&item,const HighlightResult&colors,const Options&o,float sw,float sh,CreatedBlock&out,bool&overflow,Progress&p){
+static HRESULT createBlock(IDispatch*shapes,Capture&source,const HighlightItem&item,const HighlightResult&colors,const Options&o,CreatedBlock&out,Progress&p){
     BSTR text=source.text.v.bstrVal;int length=SysStringLen(text),lines=lineCount((const Ch*)text,length),cols=displayColumns((const Ch*)text,length);
     if(lines>MAX_ROWS)return E_FAIL;if(cols<6)cols=6;Items<LineSpan> spans;if(!spans.make(lines))return E_OUTOFMEMORY;
     if(splitLines((const Ch*)text,length,spans.data(),lines)!=lines)return E_FAIL;
     if(!out.pending.make(lines*(o.lineNumbers?2:1)+4))return E_OUTOFMEMORY;
-    const float originalMeasured=o.lineNumbers?measureNumber(shapes,o.firstLine+lines-1,o,o.fontSize):-1;
-    const bool replacing=o.replace&&source.shape;
-    Items<Rect>obstacles;int obstacleCount=0;
-    const bool obstaclesKnown=replacing||collectObstacles(shapes,sw,sh,obstacles,obstacleCount);
-    const float preferredY=source.shape?source.top+getFloat(source.shape,L"Height")+12:source.top;
-    float fs=o.fontSize,gutter=0,pitch=0,width=0,height=0,left=0,top=0;
-    WindowGeometry g={};
+    const float fs=o.fontSize;
+    const float measured=o.lineNumbers?measureNumber(shapes,o.firstLine+lines-1,o,fs):-1;
+    const float gutter=o.lineNumbers?narrowGutterWidth(o.firstLine,lines,fs,measured):0;
+    const float pitch=lineHeight(o,fs),height=lines*pitch;
+    float width=cols*fs*0.62f+18+gutter;if(width<180)width=180;
+    const float left=source.left,top=source.top;
     auto geo=[&](float w,float h,float size){return o.windowFrame?windowGeometry(w,h,size,o.windowPadding,o.windowButtons):WindowGeometry{w,h,0,0,0,0};};
-    auto fitAt=[&](float size){
-        fs=size;
-        float measured=originalMeasured>0?originalMeasured*fs/o.fontSize:-1;
-        gutter=o.lineNumbers?narrowGutterWidth(o.firstLine,lines,fs,measured):0;
-        pitch=lineHeight(o,fs);height=lines*pitch;
-        float desired=cols*fs*0.62f+18+gutter;if(desired<180)desired=180;
-        WindowGeometry empty=geo(0,0,fs);
-        float maxW=sw-24-empty.width;if(maxW<gutter+32)maxW=gutter+32;
-        width=desired>maxW?maxW:desired;g=geo(width,height,fs);
-        left=source.left;top=source.top;
-        if(left+g.width>sw-12)left=sw-12-g.width;if(left<12)left=12;
-        if(top+g.height>sh-12)top=sh-12-g.height;if(top<12)top=12;
-        if(desired>maxW||g.width>sw-24||g.height>sh-24)return false;
-        if(replacing)return true;
-        return obstaclesKnown&&choosePosition(obstacles.data(),obstacleCount,g.width,g.height,sw,sh,source.left,preferredY,left,top);
-    };
-    // Keep a manually chosen size when it already fits. Limits apply only once
-    // space requires automatic sizing; this never rewrites the stored font size.
-    if(!fitAt(o.fontSize)){
-        float low=o.autoFitMin,high=o.fontSize<o.autoFitMax?o.fontSize:o.autoFitMax;
-        if(high<low)high=low;
-        if(fitAt(low)){
-            if(!fitAt(high)){
-                for(int i=0;i<10;++i){float middle=(low+high)*0.5f;if(fitAt(middle))low=middle;else high=middle;}
-                fitAt(low);
-            }
-        }else{
-            // No free rectangle, even at the minimum: use the clamped anchor.
-            // Overlap/overflow is intentional; lack of space must not abort paste.
-            fitAt(low);
-        }
-    }
+    WindowGeometry g=geo(width,height,fs);
     HRESULT hr=S_OK;Ref panel;
     bool panelNeeded=o.windowFrame||(o.outputMode==1&&o.background!=0);
     if(panelNeeded){if(failed(hr=makePanel(shapes,left,top,g.width,g.height,o,colors,out,panel))||failed(hr=makeButtons(shapes,left,top,g,o,out)))return hr;}
@@ -500,12 +461,9 @@ static HRESULT createBlock(IDispatch*shapes,Capture&source,const HighlightItem&i
             if(o.lineNumbers){if(failed(hr=addTextBox(shapes,x,y+r*pitch,gutter,pitch,shape))||failed(hr=out.add(shape))||failed(hr=writeNumber(shape,o.firstLine+r,colors,o,fs,true)))return hr;}
             if(failed(hr=addTextBox(shapes,x+gutter,y+r*pitch,width-gutter,pitch,shape))||failed(hr=out.add(shape))||failed(hr=writeLine(shape,text,spans[r],item,colors,o,fs,true,p)))return hr;
             Ref line;if(!failed(object(shape,L"Line",line)))put(line,L"Visible",Value::integer(0));
-            // Text boxes cannot expand native rows; flag tight fixed spacing instead of clipping unnoticed.
-            Ref range;if(!failed(shapeRange(shape,range))&&getFloat(range,L"BoundHeight")>pitch+0.5f)overflow=true;
         }
         if(failed(hr=groupObjects(shapes,out.pending,out.used,out.content)))return hr;out.pending.clear();out.used=0;
     }
-    if(top+g.height>sh-12)overflow=true;
     return S_OK;
 }
 
@@ -524,7 +482,7 @@ HRESULT executeAction(IDispatch*app,const Options&o,Action action,wchar_t*status
     const bool table=action==Action::Table||action==Action::Clipboard;const wchar_t*msg=nullptr;CaptureSet set,clipboardTargets;
     HRESULT hr=action==Action::Clipboard?clipboardCapture(set,false):captureSelection(app,set,o,action==Action::Format&&!o.basicCleanup,&msg);
     if(failed(hr)){copystr(error,ec,msg?msg:L"无法读取剪贴板的纯文本代码。");return hr;}
-    if(action==Action::Clipboard&&o.replace){
+    if(action==Action::Clipboard){
         const wchar_t*ignored=nullptr;
         if(captureSelection(app,clipboardTargets,o,false,&ignored)==S_OK&&clipboardTargets.count){
             // Clipboard text remains the source; selection only supplies the
@@ -546,15 +504,15 @@ HRESULT executeAction(IDispatch*app,const Options&o,Action action,wchar_t*status
         if(failed(hr)){copystr(error,ec,L"代码整理未完成，原文未改动。请减少本次处理内容后重试。");return hr;}
     }
     if(table)for(int i=0;i<outputCount;++i)if(lineCount((const Ch*)set.objects[i].text.v.bstrVal,SysStringLen(set.objects[i].text.v.bstrVal))>MAX_ROWS){copystr(error,ec,L"每张代码表格最多 200 行；请把较长代码拆到多页。");return E_FAIL;}
-    Ref shapes;float sw=960,sh=540;if(table&&failed(hr=getSlide(app,shapes,sw,sh))){copystr(error,ec,L"请切换到普通编辑视图中的一页幻灯片。");return hr;}
+    Ref shapes;if(table&&failed(hr=getSlide(app,shapes))){copystr(error,ec,L"请切换到普通编辑视图中的一页幻灯片。");return hr;}
     Items<BSTR> texts;if(!texts.make(outputCount))return E_OUTOFMEMORY;for(int i=0;i<outputCount;++i)texts[i]=set.objects[i].text.v.bstrVal;
     HighlightResult result;
     hr=invokeEngine(o,texts.data(),outputCount,result,&p);if(failed(hr)){copystr(error,ec,result.error);return hr;}
     if(!p.pump()){copystr(error,ec,L"已取消；原文未改动。");return (HRESULT)0x80004004;}
     invoke(app,L"StartNewUndoEntry",DISPATCH_METHOD,0,nullptr);
-    bool overflow=false;Items<CreatedBlock> created;if(table&&!created.make(outputCount))return E_OUTOFMEMORY;
+    Items<CreatedBlock> created;if(table&&!created.make(outputCount))return E_OUTOFMEMORY;
     for(int i=0;i<outputCount;++i){wchar_t label[160],num[24];copystr(label,160,L"正在写入 PowerPoint 原生文字与格式：");number(num,i+1);catstr(label,160,num);catstr(label,160,L" / ");number(num,outputCount);catstr(label,160,num);catstr(label,160,L"\r\n取消后可用 Ctrl+Z 撤销已完成的原地修改。");p.text(label);
-        hr=table?createBlock(shapes,set.objects[i],result.items[i],result,o,sw,sh,created[i],overflow,p):recolor(set.objects[i],result.items[i],result,o,action,p);
+        hr=table?createBlock(shapes,set.objects[i],result.items[i],result,o,created[i],p):recolor(set.objects[i],result.items[i],result,o,action,p);
         if(failed(hr))break;
     }
     if(failed(hr)){if(table){for(int i=0;i<created.size();++i)created[i].cleanup();copystr(error,ec,L"未完成的代码块及新建底框已尝试移除，原对象保留。可能是字符校验、取消、组合或 Office 格式写入失败。");}return hr;}

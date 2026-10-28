@@ -1,6 +1,6 @@
 {
   "name": "codeink-local-highlighter",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "description": "Local-only Shiki bridge for the CodeInk native PowerPoint add-in",

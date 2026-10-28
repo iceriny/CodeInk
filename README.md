@@ -6,7 +6,7 @@ CodeInk 使用本地 Shiki 引擎为代码着色，可直接更新文本框和�
 
 ## 安装
 
-在 [Releases](https://github.com/iceriny/CodeInk/releases/latest) 下载 `CodeInk-Setup-1.0.0-online.exe`。保存课件，彻底退出 PowerPoint 后运行安装程序，再重新打开 PowerPoint。
+在 [Releases](https://github.com/iceriny/CodeInk/releases/latest) 下载 `CodeInk-Setup-1.0.1-online.exe`。保存课件，彻底退出 PowerPoint 后运行安装程序，再重新打开 PowerPoint。
 
 - 支持 Intel/AMD 64 位 Windows 上的 32/64 位桌面版 PowerPoint。
 - 安装到当前用户的 `%LOCALAPPDATA%\CodeInk`，无需管理员权限，不修改系统 PATH。
@@ -28,7 +28,7 @@ CodeInk 使用本地 Shiki 引擎为代码着色，可直接更新文本框和�
 | 替换原对象 | 生成成功后替换选中的文字对象；默认关闭 |
 | 类型 / 行号 | 选择逐行表格或组合文本框，设置行号 |
 | 外观设置 | 背景、主题字形、窗口底色、内边距等 |
-| 输出 → 选项 | 表格边框、表格读取方式、多选合并、自动字号范围 |
+| 输出 → 选项 | 表格边框、表格读取方式、多选合并 |
 | 更多操作 | 仅改配色、统一字色、导入 VS Code 主题 |
 | 帮助 | 使用说明、运行状态、问题排查和关于 |
 
@@ -48,8 +48,8 @@ cout << i << "  " << n1 << "   " << n2 << endl;
 
 ## 排版与限制
 
-- 空间不足时自动调整字号，默认范围 8～32 pt，可在生成选项中修改；该范围不限制手动字号。
-- 缩到下限仍放不下时会插入，可能重叠或超出页面，可随后移动或拆分代码。
+- 生成和粘贴使用选项卡设置的字号，代码块从所选目标的左上角放置；合并时使用阅读顺序中第一个目标的位置。
+- 粘贴时未选中目标，默认从幻灯片左上角向右、向下各 48 pt 处插入。
 - 表格的行号分隔线、行间横线、外框独立设置；组合文本框不使用表格边框。
 - 逐行表格与窗口底板不能组合；需要整体移动时可选择组合文本框。
 - 每对象最多 50,000 个 UTF-16 字符单位、200 行，每批最多 32 个对象。复杂嵌套组合、合并单元格和旋转布局可能无法处理。
@@ -69,7 +69,7 @@ python -X utf8 dev.py verify
 
 C++ 原生模拟和 ASan/UBSan 检查在 Linux/WSL 下执行：`python3 dev.py sanitize`。测试覆盖整理结果、C++ 整理前后的编译运行对比、渲染、Ribbon 回调与设置保存。构建和模拟测试不等同于 PowerPoint 实测，手动验收项见 [实机检查清单](tests/windows-smoke-test.md)。
 
-推送 `v1.0.0` 形式的标签会触发 GitHub Actions：测试、本地引擎自检、构建 x86/x64 Windows 组件、校验安装包，最后发布安装程序和 SHA-256 校验文件。标签必须与 `VERSION` 一致。
+推送 `v1.0.1` 形式的标签会触发 GitHub Actions：测试、本地引擎自检、构建 x86/x64 Windows 组件、校验安装包，最后发布安装程序和 SHA-256 校验文件。标签必须与 `VERSION` 一致。
 
 ## 许可
 

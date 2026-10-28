@@ -6,7 +6,7 @@
 static const wchar_t*UNINSTALL_KEY=L"Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\CodeInk";
 static wchar_t directory[1024],filename[2400],self[1200],command[30000],message[2600],ps[1200],node[2200],bridge[2200],script[24000];
 static DWORD lastCode=0;static bool prior32=false,prior64=false;static bool enginePrior[PAYLOAD_COUNT]={},engineBacked[PAYLOAD_COUNT]={};
-static void tell(const wchar_t*t,UINT style=MB_OK|MB_ICONINFORMATION){MessageBoxW(nullptr,t,L"CodeInk 安装程序 · 1.0.0",style);}
+static void tell(const wchar_t*t,UINT style=MB_OK|MB_ICONINFORMATION){MessageBoxW(nullptr,t,L"CodeInk 安装程序 · 1.0.1",style);}
 static bool supportedSystem(){SYSTEM_INFO si={};GetNativeSystemInfo(&si);return si.wProcessorArchitecture==9;}
 static const wchar_t*arguments(){const wchar_t*p=GetCommandLineW();while(*p==' '||*p=='\t')++p;if(*p=='"'){++p;while(*p&&*p!='"')++p;if(*p)++p;}else while(*p&&*p!=' '&&*p!='\t')++p;while(*p==' '||*p=='\t')++p;return p;}
 static bool mode(const wchar_t*value){const wchar_t*p=arguments();int n=slen(value);for(int i=0;i<n;++i)if(!p[i]||p[i]!=value[i])return false;return !p[n]||p[n]==' '||p[n]=='\t';}
@@ -65,7 +65,7 @@ static void failure(const wchar_t*action,DWORD code){wchar_t hex[16];hexcode(hex
 static bool backup(){const wchar_t*names[]={L"CodeInk.x86.dll",L"CodeInk.x64.dll"};for(int i=0;i<2;++i){path(filename,2400,directory,names[i]);bool found=exists(filename);if(i==0)prior32=found;else prior64=found;if(found){copystr(message,2600,filename);catstr(message,2600,L".previous");if(!CopyFileW(filename,message,FALSE))return false;}}return true;}
 static void rollback(){const wchar_t*names[]={L"CodeInk.x86.dll",L"CodeInk.x64.dll"};for(int i=0;i<2;++i){bool prior=i?prior64:prior32;DWORD view=i?KEY_WOW64_64KEY:KEY_WOW64_32KEY;path(filename,2400,directory,names[i]);if(prior){copystr(message,2600,filename);catstr(message,2600,L".previous");if(CopyFileW(message,filename,FALSE))registerCom(filename,view);}else{unregisterCom(view);DeleteFileW(filename);}}}
 static void install(){
-    if(!officeClosed())return;copystr(message,2600,L"安装 CodeInk 1.0.0\r\n\r\n为 PowerPoint 添加可编辑的代码高亮功能。\r\n\r\n安装到当前用户，自动配置所需依赖。首次安装或修复依赖需要联网；日常使用在本机完成。\r\n\r\n安装目录：\r\n");catstr(message,2600,directory);catstr(message,2600,L"\r\n\r\n是否继续？");if(MessageBoxW(nullptr,message,L"安装 CodeInk",MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2)!=IDYES)return;
+    if(!officeClosed())return;copystr(message,2600,L"安装 CodeInk 1.0.1\r\n\r\n为 PowerPoint 添加可编辑的代码高亮功能。\r\n\r\n安装到当前用户，自动配置所需依赖。首次安装或修复依赖需要联网；日常使用在本机完成。\r\n\r\n安装目录：\r\n");catstr(message,2600,directory);catstr(message,2600,L"\r\n\r\n是否继续？");if(MessageBoxW(nullptr,message,L"安装 CodeInk",MB_YESNO|MB_ICONQUESTION|MB_DEFBUTTON2)!=IDYES)return;
     if(!mkdir(directory)){failure(L"无法建立安装目录。",GetLastError());return;}path(filename,2400,directory,L"engine");if(!mkdir(filename)||!engineSnapshot()){failure(L"无法备份本地高亮适配层。",GetLastError());return;}if(!payload(true)){lastCode=GetLastError();restoreEngine();failure(L"无法写入本地高亮适配层，已尝试恢复旧文件。",lastCode);return;}
     bool ok=false;{Progress p(nullptr,L"CodeInk · 安装本地依赖");ok=deps(p);}if(!ok){restoreEngine();failure(L"依赖安装或 Shiki 自检未完成。尚未替换插件 DLL，并已尝试恢复旧高亮适配层。",lastCode);return;}
     // Recheck: the user may have opened PowerPoint while downloading dependencies.
@@ -76,7 +76,7 @@ static void install(){
     if(!ok){rollback();restoreEngine();failure(L"COM 注册或加载自检未通过，已尝试恢复旧插件 DLL。",lastCode);return;}
     if(!uninstallEntry()){failure(L"插件已写入，但卸载信息写入失败。请重新运行安装器修复。",GetLastError());return;}
     path(filename,2400,directory,L"CodeInk.x86.dll.previous");DeleteFileW(filename);path(filename,2400,directory,L"CodeInk.x64.dll.previous");DeleteFileW(filename);
-    path(filename,2400,directory,L"bootstrap-error.txt");DeleteFileW(filename);discardEngineBackups();logEvent(L"CodeInk 1.0.0 installed; Shiki self-test and COM checks passed");
+    path(filename,2400,directory,L"bootstrap-error.txt");DeleteFileW(filename);discardEngineBackups();logEvent(L"CodeInk 1.0.1 installed; Shiki self-test and COM checks passed");
     tell(L"CodeInk 已安装。\r\n\r\n重新打开 PowerPoint，在“代码高亮”选项卡中选择语言和主题，再点击“高亮排版”。\r\n\r\n更多用法见“帮助 → 使用说明”。");
 }
 static bool safeRelative(const wchar_t*p){if(!p||!*p||*p=='\\'||*p=='/')return false;for(const wchar_t*q=p;*q;++q)if(*q==':'||*q=='/'||*q=='\t'||*q=='\n'||(*q=='.'&&q[1]=='.'))return false;const wchar_t*allowed[]={L"runtime",L"engine\\node_modules",L"cache",L"_downloads"};for(int i=0;i<4;++i){int n=slen(allowed[i]),j=0;while(j<n&&p[j]==allowed[i][j])++j;if(j==n&&(!p[j]||p[j]=='\\'))return true;}return false;}

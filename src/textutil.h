@@ -9,10 +9,6 @@ int displayColumns(const Ch* s,int n);
 bool numberSequence(const Ch* text,int n,int& expected,int& count);
 bool parseDecimal(const Ch* s,float& value,int& end);
 }
-namespace codeink {
-struct Rect { float x,y,w,h; };
-bool choosePosition(const Rect* occupied,int count,float width,float height,float slideWidth,float slideHeight,float preferredX,float preferredY,float& x,float& y);
-}
 
 namespace codeink {
 // Ranges into the full normalized source: blank lines, terminal newline and UTF-16

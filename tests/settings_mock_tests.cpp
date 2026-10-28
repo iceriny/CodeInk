@@ -46,7 +46,7 @@ static void checkTemplate(const WORD* data, bool appearance) {
     // Walk Windows' WORD/DWORD-aligned format and confirm every field exists,
     // every control is inside the client area, and IDs are unique.
     int count = data[4], width = data[7], height = data[8], i = 9;
-    assert(width == 354 && count > 10);
+    assert(width == 354 && count >= 9);
     assert(data[i++] == 0 && data[i++] == 0);
     while (data[i++]) {} ++i; while (data[i++]) {} // title, point size, font
     std::map<int, bool> ids;
@@ -59,7 +59,7 @@ static void checkTemplate(const WORD* data, bool appearance) {
         while (data[i++]) {} assert(data[i++] == 0);
     }
     assert(ids[1] && ids[2]);
-    assert(appearance ? ids[Window] && ids[BackgroundColor] && ids[Radius] : ids[ReadTable] && ids[Merge] && !ids[Replace] && !ids[BasicCleanup]);
+    assert(appearance ? ids[Window] && ids[BackgroundColor] && ids[Radius] : ids[ReadTable] && ids[Merge] && ids.size() == 4);
 }
 extern "C" LONG_PTR DialogBoxIndirectParamW(HINSTANCE, const void* data, HWND, DLGPROC proc, LPARAM param) {
     auto* state = (State*)param;
@@ -92,12 +92,8 @@ extern "C" LONG_PTR DialogBoxIndirectParamW(HINSTANCE, const void* data, HWND, D
             proc(window, Command, 1, 0); // irrelevant disabled field must not block save
         }
     } else {
-        assert(itemCounts[ReadTable] == 3); values[ReadTable] = 1; values[Merge] = 1; texts[AutoMin] = u"10"; texts[AutoMax] = u"24";
-        if (scenario == 2) {
-            texts[AutoMin] = u"5"; proc(window, Command, 1, 0); assert(!ended && focusId == AutoMin);
-            texts[AutoMin] = u"12"; texts[AutoMax] = u"10"; proc(window, Command, 1, 0); assert(!ended && focusId == AutoMax);
-            texts[AutoMax] = u"24"; proc(window, Command, 1, 0);
-        } else proc(window, Command, scenario == 0 ? 2 : 1, 0);
+        assert(itemCounts[ReadTable] == 3); values[ReadTable] = 1; values[Merge] = 1;
+        proc(window, Command, scenario == 0 ? 2 : 1, 0);
     }
     proc(window, Destroy, 0, 0); assert(!property); return ended;
 }
@@ -111,13 +107,11 @@ int main() {
         if (scenario == 3) assert(options.windowPadding == 60 && options.windowRadius == 0);
         if (scenario == 4) assert(!options.windowFrame && options.background == 2 && options.backgroundColor == 0xF3F3F6 && options.windowPadding == 14);
     }
-    for (scenario = 0; scenario <= 2; ++scenario) {
+    for (scenario = 0; scenario <= 1; ++scenario) {
         Options options; bool saved = editSettings(nullptr, nullptr, options, false);
-        assert(saved == (scenario != 0)); assert(!options.replace && options.merge == saved && options.autoFit);
-        assert(options.autoFitMin == (scenario == 0 ? 8 : scenario == 1 ? 10 : 12));
-        assert(options.autoFitMax == (saved ? 24 : 32));
+        assert(saved == (scenario != 0)); assert(!options.replace && options.merge == saved);
         assert(options.tableRead == (saved ? 1 : 0));
         assert(options.basicCleanup);
     }
-    std::puts("PASS: 8 settings scenarios: aligned templates, cancel, save, validation, disabled fields, generation preferences and automatic size limits");
+    std::puts("PASS: 7 settings scenarios: aligned templates, cancel, save, validation, disabled fields, generation preferences");
 }

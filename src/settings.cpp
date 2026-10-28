@@ -5,7 +5,7 @@ namespace {
 enum Control {
     Background = 100, BackgroundColor, ThemeStyles,
     Window = 110, Buttons, Shadow, Fill, WindowColor, Padding, Radius,
-    ReadTable = 120, Merge, Replace, AutoFit, AutoMin, AutoMax, BasicCleanup
+    ReadTable = 120, Merge
 };
 constexpr UINT InitDialog = 0x110, Command = 0x111, Close = 0x10, Destroy = 0x82;
 constexpr UINT AddString = 0x143, SetSelection = 0x14E, GetSelection = 0x147;
@@ -76,10 +76,7 @@ void initialize(HWND window, const State& state) {
     if (!state.appearance) {
         const wchar_t* modes[] = {L"自动识别首列行号", L"读取全部单元格", L"将首列视为行号"};
         combo(window, ReadTable, modes, 3, o.tableRead);
-        CheckDlgButton(window, Merge, o.merge); wchar_t limits[32];
-        decimalText(limits, o.autoFitMin); SetDlgItemTextW(window, AutoMin, limits);
-        decimalText(limits, o.autoFitMax); SetDlgItemTextW(window, AutoMax, limits);
-        SendDlgItemMessageW(window, AutoMin, 0xC5, 16, 0); SendDlgItemMessageW(window, AutoMax, 0xC5, 16, 0);
+        CheckDlgButton(window, Merge, o.merge);
         return;
     }
     const wchar_t* backgrounds[] = {L"无背景", L"跟随主题", L"自定义颜色"};
@@ -119,13 +116,7 @@ bool save(HWND window, State& state) {
     Options& o = state.draft;
     if (!state.appearance) {
         o.tableRead = selection(window, ReadTable); o.merge = checked(window, Merge);
-        o.autoFit = true;
-        float minimum = 0, maximum = 0;
-        if (!readNumber(window, AutoMin, minimum, 96, L"自动字号下限请输入 6～96 pt。")) return false;
-        if (minimum < 6) return invalid(window, AutoMin, L"自动字号下限不能小于 6 pt。");
-        if (!readNumber(window, AutoMax, maximum, 96, L"自动字号上限请输入 6～96 pt。")) return false;
-        if (maximum < minimum) return invalid(window, AutoMax, L"自动字号上限不能小于下限。");
-        o.autoFitMin = minimum; o.autoFitMax = maximum; return true;
+        return true;
     }
     o.windowFrame = checked(window, Window); o.themeStyles = checked(window, ThemeStyles);
     o.background = selection(window, Background); o.windowFill = selection(window, Fill);
@@ -171,17 +162,13 @@ void appearanceTemplate(Template& t) {
     t.finish(250);
 }
 void layoutTemplate(Template& t) {
-    t.begin(L"生成选项 · CodeInk", 278);
+    t.begin(L"生成选项 · CodeInk", 190);
     t.item(0x80, -1, L"读取现有表格", 12, 10, 330, 64, 7);
     t.label(L"读取方式", 24, 30, 54); t.combo(ReadTable, 86, 27, 240);
     t.label(L"首列数字属于代码或数据时，请选择“读取全部单元格”。", 24, 52, 302, 14);
     t.item(0x80, -1, L"多选对象", 12, 84, 330, 44, 7);
     t.check(Merge, L"将多个选中对象合并为一个代码块", 24, 102, 300);
-    t.item(0x80, -1, L"自动字号范围", 12, 138, 330, 78, 7);
-    t.label(L"下限", 24, 159, 30); t.edit(AutoMin, 62, 156, 72); t.label(L"pt", 140, 159, 20);
-    t.label(L"上限", 192, 159, 30); t.edit(AutoMax, 226, 156, 72); t.label(L"pt", 304, 159, 20);
-    t.label(L"仅在空间不足时使用，不限制手动字号。\n达到下限仍放不下时直接插入，可随后移动代码块。", 24, 182, 304, 28);
-    t.finish(248, L"保存后，下次生成或粘贴时生效。");
+    t.finish(160, L"保存后，下次生成或粘贴时生效。");
 }
 } // namespace
 

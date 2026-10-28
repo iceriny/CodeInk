@@ -69,7 +69,7 @@
               <menuSeparator id="CodeInkBorderApplySeparator" />
               <button id="CodeInkApplyBorders" onAction="OnBorders" getEnabled="GetEnabled" screentip="仅更新表格边框" supertip="只更新所选表格的边框，保留文字、配色、排版、背景和位置。" label="应用到选中表格" />
             </menu>
-            <button id="CodeInkLayoutSettings" label="生成选项…" onAction="OnLayoutSettings" getEnabled="GetEnabled" supertip="设置表格读取方式、多选合并和自动字号范围。" />
+            <button id="CodeInkLayoutSettings" label="生成选项…" onAction="OnLayoutSettings" getEnabled="GetEnabled" supertip="设置表格读取方式和多选合并。" />
             </menu>
           </box>
         </group>

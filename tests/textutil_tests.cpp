@@ -28,12 +28,6 @@ int main(){
     assert(parseDecimal(u"24 pt",value,end)&&value==24&&end==3);
     assert(parseDecimal(u"999999",value,end)&&value==999999&&end==6);
     assert(!parseDecimal(u"-1",value,end));assert(!parseDecimal(u"abc",value,end));assert(!parseDecimal(nullptr,value,end));
-    Rect occupied[]={{12,12,250,160}};float x=0,y=0;
-    assert(choosePosition(occupied,1,200,100,960,540,12,190,x,y)&&x==12&&y==190);
-    assert(choosePosition(occupied,1,200,100,960,540,12,12,x,y)&&x>=272);
-    assert(!choosePosition(occupied,1,936,516,960,540,12,12,x,y));
-    assert(choosePosition(nullptr,0,936,516,960,540,12,12,x,y));
-    assert(!choosePosition(nullptr,0,1000,100,960,540,12,12,x,y));
     // Row spans preserve interior blanks, terminal blank and original UTF-16 positions.
     LineSpan spans[10];std::u16string rows=u"a\r\n\r中😀\v";
     int parts=splitLines(rows.data(),rows.size(),spans,10);assert(parts==4);

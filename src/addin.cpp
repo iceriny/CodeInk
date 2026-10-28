@@ -11,16 +11,16 @@ static void decimalText(wchar_t*out,float numberValue,const wchar_t*suffix=L""){
 enum Callback {
     CConnect=1,CDisconnect,CAddins,CStartup,CShutdown,CCustomUI,CRibbonLoad,
     CHighlight,CFormat,CTable,CPlain,CClipboard,CBorders,
-    CLanguage,CTheme,CFontFamily,CFontSize,CSpacing,CBackground,CBackgroundColor,CNumbers,CFirstLine,CTableRead,CMerge,CReplace,CAutoFit,CThemeStyles,COutputMode,CWindowFrame,CWindowButtons,CWindowShadow,CWindowPadding,CWindowRadius,CWindowFill,CWindowColor,CBorderVertical,CBorderHorizontal,CBorderOuter,CLogging,
-    GLanguage,GTheme,GFontFamily,GFontSize,GSpacing,GBackground,GBackgroundColor,GNumbers,GFirstLine,GTableRead,GMerge,GReplace,GAutoFit,GThemeStyles,GOutputMode,GWindowFrame,GWindowButtons,GWindowShadow,GWindowPadding,GWindowRadius,GWindowFill,GWindowColor,GBorderVertical,GBorderHorizontal,GBorderOuter,GLogging,
+    CLanguage,CTheme,CFontFamily,CFontSize,CSpacing,CBackground,CBackgroundColor,CNumbers,CFirstLine,CTableRead,CMerge,CReplace,CThemeStyles,COutputMode,CWindowFrame,CWindowButtons,CWindowShadow,CWindowPadding,CWindowRadius,CWindowFill,CWindowColor,CBorderVertical,CBorderHorizontal,CBorderOuter,CLogging,
+    GLanguage,GTheme,GFontFamily,GFontSize,GSpacing,GBackground,GBackgroundColor,GNumbers,GFirstLine,GTableRead,GMerge,GReplace,GThemeStyles,GOutputMode,GWindowFrame,GWindowButtons,GWindowShadow,GWindowPadding,GWindowRadius,GWindowFill,GWindowColor,GBorderVertical,GBorderHorizontal,GBorderOuter,GLogging,
     GWindowEnabled,GBackgroundEnabled,GBorderEnabled,GWindowLabel,
     GLanguageCount,GLanguageLabel,GThemeCount,GThemeLabel,GEnabled,GStatus,CImportTheme,CHelp,CAbout,CStatus,COpenLog,CClearLog,CAppearanceSettings,CLayoutSettings,GNumbersEnabled,CBasicCleanup,GBasicCleanup
 };
 static const wchar_t*METHODS[]={
     L"OnConnection",L"OnDisconnection",L"OnAddInsUpdate",L"OnStartupComplete",L"OnBeginShutdown",L"GetCustomUI",L"OnRibbonLoad",
     L"OnHighlight",L"OnFormat",L"OnTable",L"OnPlain",L"OnClipboard",L"OnBorders",
-    L"OnLanguage",L"OnTheme",L"OnFontFamily",L"OnFontSize",L"OnSpacing",L"OnBackground",L"OnBackgroundColor",L"OnNumbers",L"OnFirstLine",L"OnTableRead",L"OnMerge",L"OnReplace",L"OnAutoFit",L"OnThemeStyles",L"OnOutputMode",L"OnWindowFrame",L"OnWindowButtons",L"OnWindowShadow",L"OnWindowPadding",L"OnWindowRadius",L"OnWindowFill",L"OnWindowColor",L"OnBorderVertical",L"OnBorderHorizontal",L"OnBorderOuter",L"OnLogging",
-    L"GetLanguage",L"GetTheme",L"GetFontFamily",L"GetFontSize",L"GetSpacing",L"GetBackground",L"GetBackgroundColor",L"GetNumbers",L"GetFirstLine",L"GetTableRead",L"GetMerge",L"GetReplace",L"GetAutoFit",L"GetThemeStyles",L"GetOutputMode",L"GetWindowFrame",L"GetWindowButtons",L"GetWindowShadow",L"GetWindowPadding",L"GetWindowRadius",L"GetWindowFill",L"GetWindowColor",L"GetBorderVertical",L"GetBorderHorizontal",L"GetBorderOuter",L"GetLogging",
+    L"OnLanguage",L"OnTheme",L"OnFontFamily",L"OnFontSize",L"OnSpacing",L"OnBackground",L"OnBackgroundColor",L"OnNumbers",L"OnFirstLine",L"OnTableRead",L"OnMerge",L"OnReplace",L"OnThemeStyles",L"OnOutputMode",L"OnWindowFrame",L"OnWindowButtons",L"OnWindowShadow",L"OnWindowPadding",L"OnWindowRadius",L"OnWindowFill",L"OnWindowColor",L"OnBorderVertical",L"OnBorderHorizontal",L"OnBorderOuter",L"OnLogging",
+    L"GetLanguage",L"GetTheme",L"GetFontFamily",L"GetFontSize",L"GetSpacing",L"GetBackground",L"GetBackgroundColor",L"GetNumbers",L"GetFirstLine",L"GetTableRead",L"GetMerge",L"GetReplace",L"GetThemeStyles",L"GetOutputMode",L"GetWindowFrame",L"GetWindowButtons",L"GetWindowShadow",L"GetWindowPadding",L"GetWindowRadius",L"GetWindowFill",L"GetWindowColor",L"GetBorderVertical",L"GetBorderHorizontal",L"GetBorderOuter",L"GetLogging",
     L"GetWindowEnabled",L"GetBackgroundEnabled",L"GetBorderEnabled",L"GetWindowLabel",
     L"LanguageCount",L"LanguageLabel",L"ThemeCount",L"ThemeLabel",L"GetEnabled",L"GetStatus",L"OnImportTheme",L"OnHelp",L"OnAbout",L"OnStatus",L"OnOpenLog",L"OnClearLog",L"OnAppearanceSettings",L"OnLayoutSettings",L"GetNumbersEnabled",L"OnBasicCleanup",L"GetBasicCleanup"
 };
@@ -56,7 +56,7 @@ public:
             case GBackground:integer=opts.background;break;
             case GBackgroundColor:{const wchar_t*hex=L"0123456789ABCDEF";text[0]='#';for(int i=0;i<6;++i)text[i+1]=hex[(opts.backgroundColor>>(20-i*4))&15];text[7]=0;value=text;break;}
             case GNumbers:boolean=true;integer=opts.lineNumbers;break;case GFirstLine:number(text,opts.firstLine);value=text;break;
-            case GTableRead:integer=opts.tableRead;break;case GMerge:boolean=true;integer=opts.merge;break;case GReplace:boolean=true;integer=opts.replace;break;case GAutoFit:boolean=true;integer=opts.autoFit;break;case GThemeStyles:boolean=true;integer=opts.themeStyles;break;
+            case GTableRead:integer=opts.tableRead;break;case GMerge:boolean=true;integer=opts.merge;break;case GReplace:boolean=true;integer=opts.replace;break;case GThemeStyles:boolean=true;integer=opts.themeStyles;break;
             case GOutputMode:integer=opts.outputMode;break;
             case GWindowFrame:boolean=true;integer=opts.windowFrame;break;
             case GWindowButtons:boolean=true;integer=opts.windowButtons;break;
@@ -83,7 +83,7 @@ public:
         result->vt=boolean?VT_BOOL:VT_I4;if(boolean)result->boolVal=integer?-1:0;else result->lVal=integer;return S_OK;
     }
     HRESULT STDMETHODCALLTYPE OnConnection(IDispatch*application,LONG,IDispatch*,SAFEARRAY**)override{
-        app.set(application);read();languages.load(L"engine\\languages.tsv",false);themes.load(L"engine\\themes.tsv",true);logEvent(sizeof(void*)==8?L"CodeInk 1.0.0 connected (x64)":L"CodeInk 1.0.0 connected (x86)");return app?S_OK:E_POINTER;
+        app.set(application);read();languages.load(L"engine\\languages.tsv",false);themes.load(L"engine\\themes.tsv",true);logEvent(sizeof(void*)==8?L"CodeInk 1.0.1 connected (x64)":L"CodeInk 1.0.1 connected (x86)");return app?S_OK:E_POINTER;
     }
     HRESULT STDMETHODCALLTYPE OnDisconnection(LONG,SAFEARRAY**)override{app.take(nullptr);ribbon.take(nullptr);logEvent(L"Disconnected");return S_OK;}
     HRESULT STDMETHODCALLTYPE OnAddInsUpdate(SAFEARRAY**)override{return S_OK;}HRESULT STDMETHODCALLTYPE OnStartupComplete(SAFEARRAY**)override{return S_OK;}HRESULT STDMETHODCALLTYPE OnBeginShutdown(SAFEARRAY**)override{app.take(nullptr);ribbon.take(nullptr);return S_OK;}
@@ -95,10 +95,8 @@ private:
         readRegText(CONFIG_KEY,L"ThemeId",opts.theme,128,L"github-light");readRegText(CONFIG_KEY,L"ThemeFile",opts.themePath,2048,L"");readRegText(CONFIG_KEY,L"FontFamily",opts.font,64,L"Consolas");
         opts.fontSize=bound(readNumber(CONFIG_KEY,L"FontSize100",1800),600,9600)/100.0f;opts.spacingPoints=readNumber(CONFIG_KEY,L"SpacingPoints",0)!=0;opts.spacing=bound(readNumber(CONFIG_KEY,L"Spacing100",120),opts.spacingPoints?600:80,opts.spacingPoints?20000:300)/100.0f;
         opts.background=bound(readNumber(CONFIG_KEY,L"BackgroundMode",0),0,2);opts.backgroundColor=readNumber(CONFIG_KEY,L"BackgroundColor",0xFFFFFF)&0xFFFFFF;opts.tableRead=bound(readNumber(CONFIG_KEY,L"TableRead",0),0,2);
-        opts.lineNumbers=readNumber(CONFIG_KEY,L"LineNumbers",0)!=0;opts.merge=readNumber(CONFIG_KEY,L"Merge",0)!=0;opts.replace=readNumber(CONFIG_KEY,L"Replace",0)!=0;opts.autoFit=true;opts.themeStyles=readNumber(CONFIG_KEY,L"ThemeStyles",0)!=0;opts.firstLine=bound(readNumber(CONFIG_KEY,L"FirstLine",1),1,999999);
+        opts.lineNumbers=readNumber(CONFIG_KEY,L"LineNumbers",0)!=0;opts.merge=readNumber(CONFIG_KEY,L"Merge",0)!=0;opts.replace=readNumber(CONFIG_KEY,L"Replace",0)!=0;opts.themeStyles=readNumber(CONFIG_KEY,L"ThemeStyles",0)!=0;opts.firstLine=bound(readNumber(CONFIG_KEY,L"FirstLine",1),1,999999);
         opts.basicCleanup=readNumber(CONFIG_KEY,L"BasicCleanup",1)!=0;
-        opts.autoFitMin=bound(readNumber(CONFIG_KEY,L"AutoFitMin100",800),600,9600)/100.0f;
-        opts.autoFitMax=bound(readNumber(CONFIG_KEY,L"AutoFitMax100",3200),(int)(opts.autoFitMin*100+0.5f),9600)/100.0f;
         opts.outputMode=bound(readNumber(CONFIG_KEY,L"OutputMode",0),0,1);
         opts.windowFrame=readNumber(CONFIG_KEY,L"WindowFrame",0)!=0;
         opts.windowButtons=readNumber(CONFIG_KEY,L"WindowButtons",1)!=0;
@@ -115,9 +113,8 @@ private:
     void save(){
         regText(CONFIG_KEY,L"LanguageId",opts.language);regText(CONFIG_KEY,L"ThemeId",opts.theme);regText(CONFIG_KEY,L"ThemeFile",opts.themePath);regText(CONFIG_KEY,L"FontFamily",opts.font);
         regNumber(CONFIG_KEY,L"FontSize100",(DWORD)(opts.fontSize*100+0.5f));regNumber(CONFIG_KEY,L"Spacing100",(DWORD)(opts.spacing*100+0.5f));regNumber(CONFIG_KEY,L"SpacingPoints",opts.spacingPoints);
-        regNumber(CONFIG_KEY,L"BackgroundMode",opts.background);regNumber(CONFIG_KEY,L"BackgroundColor",opts.backgroundColor);regNumber(CONFIG_KEY,L"TableRead",opts.tableRead);regNumber(CONFIG_KEY,L"LineNumbers",opts.lineNumbers);regNumber(CONFIG_KEY,L"Merge",opts.merge);regNumber(CONFIG_KEY,L"Replace",opts.replace);regNumber(CONFIG_KEY,L"AutoFit",opts.autoFit);regNumber(CONFIG_KEY,L"ThemeStyles",opts.themeStyles);regNumber(CONFIG_KEY,L"FirstLine",opts.firstLine);
+        regNumber(CONFIG_KEY,L"BackgroundMode",opts.background);regNumber(CONFIG_KEY,L"BackgroundColor",opts.backgroundColor);regNumber(CONFIG_KEY,L"TableRead",opts.tableRead);regNumber(CONFIG_KEY,L"LineNumbers",opts.lineNumbers);regNumber(CONFIG_KEY,L"Merge",opts.merge);regNumber(CONFIG_KEY,L"Replace",opts.replace);regNumber(CONFIG_KEY,L"ThemeStyles",opts.themeStyles);regNumber(CONFIG_KEY,L"FirstLine",opts.firstLine);
         regNumber(CONFIG_KEY,L"BasicCleanup",opts.basicCleanup);
-        regNumber(CONFIG_KEY,L"AutoFitMin100",(DWORD)(opts.autoFitMin*100+0.5f));regNumber(CONFIG_KEY,L"AutoFitMax100",(DWORD)(opts.autoFitMax*100+0.5f));
         regNumber(CONFIG_KEY,L"OutputMode",opts.outputMode);regNumber(CONFIG_KEY,L"WindowFrame",opts.windowFrame);
         regNumber(CONFIG_KEY,L"WindowButtons",opts.windowButtons);regNumber(CONFIG_KEY,L"WindowShadow",opts.windowShadow);
         regNumber(CONFIG_KEY,L"WindowPadding100",(DWORD)(opts.windowPadding*100+0.5f));regNumber(CONFIG_KEY,L"WindowRadius100",(DWORD)(opts.windowRadius*100+0.5f));
@@ -150,7 +147,7 @@ private:
             case CNumbers:opts.lineNumbers=asLong(&a[0])!=0;break;
             case CFirstLine:ok=codeink::parseDecimal((const codeink::Ch*)t,v,end)&&!t[end]&&v>=1&&v<=999999&&v==(int)v;if(ok)opts.firstLine=(int)v;break;
             case CTableRead:if(n<3)return;opts.tableRead=bound(asLong(&a[0]),0,2);break;
-            case CMerge:opts.merge=asLong(&a[0])!=0;break;case CReplace:opts.replace=asLong(&a[0])!=0;break;case CAutoFit:opts.autoFit=true;break;case CThemeStyles:opts.themeStyles=asLong(&a[0])!=0;break;
+            case CMerge:opts.merge=asLong(&a[0])!=0;break;case CReplace:opts.replace=asLong(&a[0])!=0;break;case CThemeStyles:opts.themeStyles=asLong(&a[0])!=0;break;
         }
         if(!ok){
             const wchar_t* hint=L"输入内容无效，请检查后重试。原设置已保留。";
@@ -224,7 +221,7 @@ private:
         MessageBoxW(GetForegroundWindow(),text,L"运行状态 · CodeInk",MB_OK|MB_ICONINFORMATION);dealloc(text);
     }
     void about(){
-        MessageBoxW(GetForegroundWindow(),L"CodeInk\r\n让代码在 PowerPoint 中清晰呈现，保持可编辑。\r\n\r\n版本：1.0.0\r\n作者：Iceriny\r\n\r\n代码高亮在本机完成。",L"关于 CodeInk",MB_OK|MB_ICONINFORMATION);
+        MessageBoxW(GetForegroundWindow(),L"CodeInk\r\n让代码在 PowerPoint 中清晰呈现，保持可编辑。\r\n\r\n版本：1.0.1\r\n作者：Iceriny\r\n\r\n代码高亮在本机完成。",L"关于 CodeInk",MB_OK|MB_ICONINFORMATION);
     }
 
 };

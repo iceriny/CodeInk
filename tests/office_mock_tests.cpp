@@ -179,9 +179,9 @@ HRESULT Node::Invoke(DISPID id,REFIID,LCID,WORD flags,DISPPARAMS*p,VARIANT*r,EXC
     return DISP_E_MEMBERNOTFOUND;
 }
 struct Case {
-    World world;Options opts;Capture source;HighlightItem item;HighlightResult colors;CreatedBlock out;Progress progress{nullptr,L"test"};Node*shapes,*original;bool overflow=false;
+    World world;Options opts;Capture source;HighlightItem item;HighlightResult colors;CreatedBlock out;Progress progress{nullptr,L"test"};Node*shapes,*original;
     Case(const U&code,bool numbers=false){opts.replace=true;opts.lineNumbers=numbers;shapes=world.make("shapes");original=world.shape(17,30,30,100,30);original->code=code;original->ink.assign(code.size(),0);source.shape.set(original);source.text=Value::text(w(code));source.left=30;source.top=30;item.length=code.size();item.tokens.make(1);item.tokens[0]={0,(DWORD)code.size(),0xABCDEF,0};colors.fg=0x222222;colors.bg=0x282C34;colors.gutter=0x777777;cancelAfter=-1;pumps=0;}
-    HRESULT run(){return createBlock(shapes,source,item,colors,opts,960,540,out,overflow,progress);}
+    HRESULT run(){return createBlock(shapes,source,item,colors,opts,out,progress);}
     Node*table(){return ((Node*)out.content.p)->links.at(u"Table");}
     Node*border(int r,int c,int side){return table()->members.at(r*table()->cols+c)->link(u"Borders","borders")->link(U(1,(char16_t)(u'0'+side)),"border");}
     bool visible(int r,int c,int side){return border(r,c,side)->value(u"Visible",-1)!=0&&border(r,c,side)->value(u"Transparency",0)<1;}
@@ -273,8 +273,8 @@ int main(){
     {
         Case c(u"alpha\r\rbeta",true);c.opts.outputMode=1;c.opts.windowFrame=true;assert(c.run()==S_OK);
         Capture source;const wchar_t*msg=nullptr;assert(captureShape(c.out.content,source,c.opts,false,&msg)==S_OK);
-        c.opts.windowFrame=false;CreatedBlock rebuilt;bool overflow=false;
-        assert(createBlock(c.shapes,source,c.item,c.colors,c.opts,960,540,rebuilt,overflow,c.progress)==S_OK);
+        c.opts.windowFrame=false;CreatedBlock rebuilt;
+        assert(createBlock(c.shapes,source,c.item,c.colors,c.opts,rebuilt,c.progress)==S_OK);
         Node*g=(Node*)rebuilt.content.p;assert(g->type==6&&g->members.size()==6);
         for(Node*part:g->members)assert(part->type==17);
         Capture again;assert(captureShape(g,again,c.opts,false,&msg)==S_OK&&text(again.text.v)==u"alpha\r\rbeta");
@@ -342,33 +342,55 @@ int main(){
         pass("normal highlighter formatting also honours the selected table-border settings");
     }
     {
-        Case c(U(300,u'x'));c.opts.autoFitMin=10;c.opts.autoFitMax=14;
-        assert(c.run()==S_OK&&std::abs(fontSize(c)-10)<0.01f&&!c.original->dead);
-        assert(c.opts.fontSize==18);pass("too-wide code is inserted at auto minimum without changing the stored font size");
+        Case c(U(300,u'x'));c.opts.fontSize=24;
+        c.source.left=945;c.source.top=535;
+        assert(c.run()==S_OK&&fontSize(c)==24&&!c.original->dead);
+        Node*result=(Node*)c.out.content.p;
+        assert(result->value(u"Left")==945&&result->value(u"Top")==535&&result->value(u"Width")>960);
+        pass("wide code preserves explicit font size and source origin beyond slide edges");
     }
     {
-        Case c(u"abc");c.opts.fontSize=60;c.opts.autoFitMax=20;assert(c.run()==S_OK&&fontSize(c)==60);
-        Case small(u"abc");small.opts.fontSize=6;small.opts.autoFitMin=12;assert(small.run()==S_OK&&fontSize(small)==6);
-        pass("manual font sizes above and below automatic limits remain unchanged when they fit");
+        Case c(u"abc");c.opts.fontSize=60;assert(c.run()==S_OK&&fontSize(c)==60);
+        Case small(u"abc");small.opts.fontSize=6;assert(small.run()==S_OK&&fontSize(small)==6);
+        pass("small and large explicit font sizes are preserved");
     }
     {
         Case c(U(40,u'x'));c.opts.replace=false;Node*obstacle=c.world.shape(17,0,0,630,540);obstacle->code=u"occupied";
-        assert(c.run()==S_OK&&fontSize(c)>=8&&fontSize(c)<18);
-        assert(((Node*)c.out.content.p)->value(u"Left")>=639.5f&&!c.original->dead);
-        pass("automatic sizing finds the available side space before allowing overlap");
+        assert(c.run()==S_OK&&fontSize(c)==18);
+        assert(((Node*)c.out.content.p)->value(u"Left")==30&&((Node*)c.out.content.p)->value(u"Top")==30&&!c.original->dead);
+        pass("occupied slides preserve source origin and explicit font size without replacement");
     }
     {
         Case c(u"abc");c.opts.replace=false;Node*obstacle=c.world.shape(17,0,0,960,540);obstacle->code=u"occupied";
-        assert(c.run()==S_OK&&fontSize(c)==c.opts.autoFitMin);
-        assert(c.out.content&&!c.original->dead);pass("full slide forces insertion without the former no-free-space failure");
+        assert(c.run()==S_OK&&fontSize(c)==c.opts.fontSize);
+        assert(c.out.content&&!c.original->dead);pass("full slides preserve the configured font size");
     }
-    for(bool selected:{false,true}){
-        Case c(u"original text");c.opts.replace=true;Node*obstacle=c.world.shape(17,0,0,960,540);obstacle->code=u"occupied";
+    for(int mode:{0,1})for(bool window:{false,true}){
+        U code;for(int i=0;i<40;++i)code+=u"a long code line\r";
+        Case c(code,true);c.opts.outputMode=mode;c.opts.windowFrame=window;c.opts.fontSize=36;
+        c.source.left=-20;c.source.top=500;
+        assert(c.run()==S_OK);
+        Node*root=(Node*)(c.out.decoration?c.out.decoration.p:c.out.content.p);
+        assert(root->value(u"Left")==-20&&root->value(u"Top")==500);
+        Capture captured;const wchar_t*msg=nullptr;
+        assert(captureShape(c.out.content,captured,c.opts,false,&msg)==S_OK);
+        for(int i=0;i<captured.segments.size();++i){Ref font;
+            assert(object(captured.segments[i].range,L"Font",font)==S_OK&&getFloat(font,L"Size")==36);
+        }
+        pass("both output modes retain font size and origin for tall blocks with or without a window");
+    }
+    for(bool selected:{false,true})for(bool replace:{false,true}){
+        Case c(u"original text");c.opts.replace=replace;c.opts.fontSize=42;Node*obstacle=c.world.shape(17,0,0,960,540);obstacle->code=u"occupied";
         Node*app=appFor(c,selected);wchar_t status[256],error[1600];clipboardText=u"pasted code";
         assert(executeAction(app,c.opts,Action::Clipboard,status,256,error,1600,c.progress)==S_OK);
-        assert(c.original->dead==selected&&!obstacle->dead);bool pasted=false;
-        for(Node*shape:c.world.top())if(shape->type==19){Node*cell=shape->links.at(u"Table")->members[0];pasted|=cell->links.at(u"Shape")->code==u"pasted code";}
-        assert(pasted&&error[0]==0);pass(selected?"clipboard replaces selected text only after successful generation":"clipboard without selection inserts on a full slide even with replace enabled");
+        assert(c.original->dead==(selected&&replace)&&!obstacle->dead);bool pasted=false;
+        for(Node*shape:c.world.top())if(shape->type==19){
+            Node*cell=shape->links.at(u"Table")->members[0]->links.at(u"Shape");
+            pasted|=cell->code==u"pasted code";
+            assert(cell->links.at(u"TextFrame")->links.at(u"TextRange")->links.at(u"Font")->value(u"Size")==42);
+            assert(shape->value(u"Left")==(selected?30:48)&&shape->value(u"Top")==(selected?30:48));
+        }
+        assert(pasted&&error[0]==0);pass(selected?"clipboard uses selection origin with replacement enabled or disabled":"clipboard without selection uses the default origin and explicit font size");
     }
     {
         Case c(u"keep original");Node*app=appFor(c,true);wchar_t status[256],error[1600];engineFails=true;
