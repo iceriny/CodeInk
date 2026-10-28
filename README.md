@@ -6,7 +6,7 @@ CodeInk 使用本地 Shiki 引擎为代码着色，可直接更新文本框和�
 
 ## 安装
 
-在 [Releases](https://github.com/iceriny/CodeInk/releases/latest) 下载 `CodeInk-Setup-1.0.1-online.exe`。保存课件，彻底退出 PowerPoint 后运行安装程序，再重新打开 PowerPoint。
+在 [Releases](https://github.com/iceriny/CodeInk/releases/latest) 下载 `CodeInk-Setup-1.0.2-online.exe`。保存课件，彻底退出 PowerPoint 后运行安装程序，再重新打开 PowerPoint。
 
 - 支持 Intel/AMD 64 位 Windows 上的 32/64 位桌面版 PowerPoint。
 - 安装到当前用户的 `%LOCALAPPDATA%\CodeInk`，无需管理员权限，不修改系统 PATH。
@@ -25,6 +25,7 @@ CodeInk 使用本地 Shiki 引擎为代码着色，可直接更新文本框和�
 | 入口 | 用途 |
 |---|---|
 | 自动整理代码 | 排版、生成和粘贴时整理空格与缩进；默认开启 |
+| 缩进 | 每级 1～8 个空格，默认 4；随自动整理生效并保存偏好 |
 | 替换原对象 | 生成成功后替换选中的文字对象；默认关闭 |
 | 类型 / 行号 | 选择逐行表格或组合文本框，设置行号 |
 | 外观设置 | 背景、主题字形、窗口底色、内边距等 |
@@ -69,7 +70,7 @@ python -X utf8 dev.py verify
 
 C++ 原生模拟和 ASan/UBSan 检查在 Linux/WSL 下执行：`python3 dev.py sanitize`。测试覆盖整理结果、C++ 整理前后的编译运行对比、渲染、Ribbon 回调与设置保存。构建和模拟测试不等同于 PowerPoint 实测，手动验收项见 [实机检查清单](tests/windows-smoke-test.md)。
 
-推送 `v1.0.1` 形式的标签会触发 GitHub Actions：测试、本地引擎自检、构建 x86/x64 Windows 组件、校验安装包，最后发布安装程序和 SHA-256 校验文件。标签必须与 `VERSION` 一致。
+推送 `v1.0.2` 形式的标签会触发 GitHub Actions：测试、本地引擎自检、构建 x86/x64 Windows 组件、校验安装包，最后发布安装程序和 SHA-256 校验文件。标签必须与 `VERSION` 一致。
 
 ## 许可
 

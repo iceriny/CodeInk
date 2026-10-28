@@ -22,7 +22,7 @@ static HRESULT normalized(Value& value,BSTR source,bool expandTabs=false){
 static HRESULT tidyText(Value& value,const Options&o){
     Value source;HRESULT hr=normalized(source,value.v.bstrVal,false);if(failed(hr))return hr;
     Items<Ch> buffer;if(!buffer.make(MAX_CODE+1))return E_OUTOFMEMORY;
-    int n=basicFormat((const Ch*)source.v.bstrVal,SysStringLen(source.v.bstrVal),(const Ch*)o.language,buffer.data(),MAX_CODE+1);
+    int n=basicFormat((const Ch*)source.v.bstrVal,SysStringLen(source.v.bstrVal),(const Ch*)o.language,buffer.data(),MAX_CODE+1,o.indentWidth);
     // If added whitespace would exceed the existing limit, keep the source.
     if(n<0){value=source;return S_OK;}
     return setBstr(value,SysAllocStringLen((const wchar_t*)buffer.data(),n));

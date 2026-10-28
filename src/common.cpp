@@ -9,7 +9,7 @@ const wchar_t* const PROGID=L"CodeInk.PowerPointAddin";
 const wchar_t* const CLSID_TEXT=L"{6B524C11-6D7C-4C67-B923-55DED62392A1}";
 const wchar_t* const ADDIN_KEY=L"Software\\Microsoft\\Office\\PowerPoint\\Addins\\CodeInk.PowerPointAddin";
 const wchar_t* const CONFIG_KEY=L"Software\\CodeInk\\PowerPoint";
-const wchar_t* const VERSION=L"1.0.1";
+const wchar_t* const VERSION=L"1.0.2";
 extern "C" int _fltused=0;
 #ifndef CODEINK_HOST_TEST
 extern "C" void* memset(void* d,int c,SIZE_T n) { BYTE* p=(BYTE*)d; for(SIZE_T i=0;i<n;++i)p[i]=(BYTE)c;return d; }

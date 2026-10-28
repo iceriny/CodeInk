@@ -85,7 +85,7 @@ async function selfTest() {
     if (!custom.items[0]?.tokens.length) throw new Error('JSONC theme integration self-test failed.');
   } finally { rmSync(folder, { recursive: true, force: true }); }
   await catalog();
-  writeFileSync(join(here, 'self-test-passed.txt'), 'CodeInk 1.0.1: Shiki integration self-test passed\n');
+  writeFileSync(join(here, 'self-test-passed.txt'), 'CodeInk 1.0.2: Shiki integration self-test passed\n');
 }
 const [command, input, output] = process.argv.slice(2);
 const diagnostics = process.argv.slice(2).includes('--diagnostics');

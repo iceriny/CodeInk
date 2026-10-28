@@ -14,7 +14,7 @@ enum Callback {
     CLanguage,CTheme,CFontFamily,CFontSize,CSpacing,CBackground,CBackgroundColor,CNumbers,CFirstLine,CTableRead,CMerge,CReplace,CThemeStyles,COutputMode,CWindowFrame,CWindowButtons,CWindowShadow,CWindowPadding,CWindowRadius,CWindowFill,CWindowColor,CBorderVertical,CBorderHorizontal,CBorderOuter,CLogging,
     GLanguage,GTheme,GFontFamily,GFontSize,GSpacing,GBackground,GBackgroundColor,GNumbers,GFirstLine,GTableRead,GMerge,GReplace,GThemeStyles,GOutputMode,GWindowFrame,GWindowButtons,GWindowShadow,GWindowPadding,GWindowRadius,GWindowFill,GWindowColor,GBorderVertical,GBorderHorizontal,GBorderOuter,GLogging,
     GWindowEnabled,GBackgroundEnabled,GBorderEnabled,GWindowLabel,
-    GLanguageCount,GLanguageLabel,GThemeCount,GThemeLabel,GEnabled,GStatus,CImportTheme,CHelp,CAbout,CStatus,COpenLog,CClearLog,CAppearanceSettings,CLayoutSettings,GNumbersEnabled,CBasicCleanup,GBasicCleanup
+    GLanguageCount,GLanguageLabel,GThemeCount,GThemeLabel,GEnabled,GStatus,CImportTheme,CHelp,CAbout,CStatus,COpenLog,CClearLog,CAppearanceSettings,CLayoutSettings,GNumbersEnabled,CBasicCleanup,GBasicCleanup,CIndentWidth,GIndentWidth,GIndentEnabled
 };
 static const wchar_t*METHODS[]={
     L"OnConnection",L"OnDisconnection",L"OnAddInsUpdate",L"OnStartupComplete",L"OnBeginShutdown",L"GetCustomUI",L"OnRibbonLoad",
@@ -22,7 +22,7 @@ static const wchar_t*METHODS[]={
     L"OnLanguage",L"OnTheme",L"OnFontFamily",L"OnFontSize",L"OnSpacing",L"OnBackground",L"OnBackgroundColor",L"OnNumbers",L"OnFirstLine",L"OnTableRead",L"OnMerge",L"OnReplace",L"OnThemeStyles",L"OnOutputMode",L"OnWindowFrame",L"OnWindowButtons",L"OnWindowShadow",L"OnWindowPadding",L"OnWindowRadius",L"OnWindowFill",L"OnWindowColor",L"OnBorderVertical",L"OnBorderHorizontal",L"OnBorderOuter",L"OnLogging",
     L"GetLanguage",L"GetTheme",L"GetFontFamily",L"GetFontSize",L"GetSpacing",L"GetBackground",L"GetBackgroundColor",L"GetNumbers",L"GetFirstLine",L"GetTableRead",L"GetMerge",L"GetReplace",L"GetThemeStyles",L"GetOutputMode",L"GetWindowFrame",L"GetWindowButtons",L"GetWindowShadow",L"GetWindowPadding",L"GetWindowRadius",L"GetWindowFill",L"GetWindowColor",L"GetBorderVertical",L"GetBorderHorizontal",L"GetBorderOuter",L"GetLogging",
     L"GetWindowEnabled",L"GetBackgroundEnabled",L"GetBorderEnabled",L"GetWindowLabel",
-    L"LanguageCount",L"LanguageLabel",L"ThemeCount",L"ThemeLabel",L"GetEnabled",L"GetStatus",L"OnImportTheme",L"OnHelp",L"OnAbout",L"OnStatus",L"OnOpenLog",L"OnClearLog",L"OnAppearanceSettings",L"OnLayoutSettings",L"GetNumbersEnabled",L"OnBasicCleanup",L"GetBasicCleanup"
+    L"LanguageCount",L"LanguageLabel",L"ThemeCount",L"ThemeLabel",L"GetEnabled",L"GetStatus",L"OnImportTheme",L"OnHelp",L"OnAbout",L"OnStatus",L"OnOpenLog",L"OnClearLog",L"OnAppearanceSettings",L"OnLayoutSettings",L"GetNumbersEnabled",L"OnBasicCleanup",L"GetBasicCleanup",L"OnIndentWidth",L"GetIndentWidth",L"GetIndentEnabled"
 };
 class Addin final:public IDTExtensibility2,public IRibbonExtensibility{
     volatile LONG refs;Ref app,ribbon;Options opts;Catalog languages,themes;bool busy;wchar_t status[256];
@@ -43,7 +43,7 @@ public:
         if(id==CCustomUI){if(!result)return E_POINTER;result->vt=VT_BSTR;return GetCustomUI(nullptr,&result->bstrVal);}
         if(id==CRibbonLoad){if(n<1)return DISP_E_BADPARAMCOUNT;ribbon.set(asDispatch(&a[0]));return S_OK;}
         if(id==CHighlight||id==CFormat||id==CTable||id==CPlain||id==CClipboard||id==CBorders){run(id==CHighlight?Action::Color:id==CFormat?Action::Format:id==CTable?Action::Table:id==CPlain?Action::Plain:id==CBorders?Action::Borders:Action::Clipboard);return S_OK;}
-        if((id>=CLanguage&&id<=CLogging)||id==CBasicCleanup){if(n<2)return DISP_E_BADPARAMCOUNT;change(id,a,n);return S_OK;}
+        if((id>=CLanguage&&id<=CLogging)||id==CBasicCleanup||id==CIndentWidth){if(n<2)return DISP_E_BADPARAMCOUNT;change(id,a,n);return S_OK;}
         if(id==CImportTheme){importTheme();return S_OK;}if(id==CHelp){help();return S_OK;}if(id==CAbout){about();return S_OK;}
         if(id==CStatus){showStatus();return S_OK;}
         if(id==CAppearanceSettings||id==CLayoutSettings){settings(id==CAppearanceSettings);return S_OK;}
@@ -74,6 +74,8 @@ public:
             case GBorderEnabled:boolean=true;integer=!busy&&opts.outputMode==0;break;
             case GWindowLabel:value=L"模拟窗口";break;
             case GNumbersEnabled:boolean=true;integer=!busy&&opts.lineNumbers;break;
+            case GIndentWidth:integer=opts.indentWidth-1;break;
+            case GIndentEnabled:boolean=true;integer=!busy&&opts.basicCleanup;break;
             case GBasicCleanup:boolean=true;integer=opts.basicCleanup;break;
             case GLanguageCount:integer=languages.count();break;case GLanguageLabel:if(n<2)return DISP_E_BADPARAMCOUNT;value=languages.label(asLong(&a[0]));break;
             case GThemeCount:integer=themes.count()+(opts.themePath[0]?1:0);break;case GThemeLabel:if(n<2)return DISP_E_BADPARAMCOUNT;value=asLong(&a[0])==themes.count()?L"已导入的主题":themes.label(asLong(&a[0]));break;
@@ -83,7 +85,7 @@ public:
         result->vt=boolean?VT_BOOL:VT_I4;if(boolean)result->boolVal=integer?-1:0;else result->lVal=integer;return S_OK;
     }
     HRESULT STDMETHODCALLTYPE OnConnection(IDispatch*application,LONG,IDispatch*,SAFEARRAY**)override{
-        app.set(application);read();languages.load(L"engine\\languages.tsv",false);themes.load(L"engine\\themes.tsv",true);logEvent(sizeof(void*)==8?L"CodeInk 1.0.1 connected (x64)":L"CodeInk 1.0.1 connected (x86)");return app?S_OK:E_POINTER;
+        app.set(application);read();languages.load(L"engine\\languages.tsv",false);themes.load(L"engine\\themes.tsv",true);logEvent(sizeof(void*)==8?L"CodeInk 1.0.2 connected (x64)":L"CodeInk 1.0.2 connected (x86)");return app?S_OK:E_POINTER;
     }
     HRESULT STDMETHODCALLTYPE OnDisconnection(LONG,SAFEARRAY**)override{app.take(nullptr);ribbon.take(nullptr);logEvent(L"Disconnected");return S_OK;}
     HRESULT STDMETHODCALLTYPE OnAddInsUpdate(SAFEARRAY**)override{return S_OK;}HRESULT STDMETHODCALLTYPE OnStartupComplete(SAFEARRAY**)override{return S_OK;}HRESULT STDMETHODCALLTYPE OnBeginShutdown(SAFEARRAY**)override{app.take(nullptr);ribbon.take(nullptr);return S_OK;}
@@ -97,6 +99,7 @@ private:
         opts.background=bound(readNumber(CONFIG_KEY,L"BackgroundMode",0),0,2);opts.backgroundColor=readNumber(CONFIG_KEY,L"BackgroundColor",0xFFFFFF)&0xFFFFFF;opts.tableRead=bound(readNumber(CONFIG_KEY,L"TableRead",0),0,2);
         opts.lineNumbers=readNumber(CONFIG_KEY,L"LineNumbers",0)!=0;opts.merge=readNumber(CONFIG_KEY,L"Merge",0)!=0;opts.replace=readNumber(CONFIG_KEY,L"Replace",0)!=0;opts.themeStyles=readNumber(CONFIG_KEY,L"ThemeStyles",0)!=0;opts.firstLine=bound(readNumber(CONFIG_KEY,L"FirstLine",1),1,999999);
         opts.basicCleanup=readNumber(CONFIG_KEY,L"BasicCleanup",1)!=0;
+        opts.indentWidth=bound(readNumber(CONFIG_KEY,L"IndentWidth",4),1,8);
         opts.outputMode=bound(readNumber(CONFIG_KEY,L"OutputMode",0),0,1);
         opts.windowFrame=readNumber(CONFIG_KEY,L"WindowFrame",0)!=0;
         opts.windowButtons=readNumber(CONFIG_KEY,L"WindowButtons",1)!=0;
@@ -115,6 +118,7 @@ private:
         regNumber(CONFIG_KEY,L"FontSize100",(DWORD)(opts.fontSize*100+0.5f));regNumber(CONFIG_KEY,L"Spacing100",(DWORD)(opts.spacing*100+0.5f));regNumber(CONFIG_KEY,L"SpacingPoints",opts.spacingPoints);
         regNumber(CONFIG_KEY,L"BackgroundMode",opts.background);regNumber(CONFIG_KEY,L"BackgroundColor",opts.backgroundColor);regNumber(CONFIG_KEY,L"TableRead",opts.tableRead);regNumber(CONFIG_KEY,L"LineNumbers",opts.lineNumbers);regNumber(CONFIG_KEY,L"Merge",opts.merge);regNumber(CONFIG_KEY,L"Replace",opts.replace);regNumber(CONFIG_KEY,L"ThemeStyles",opts.themeStyles);regNumber(CONFIG_KEY,L"FirstLine",opts.firstLine);
         regNumber(CONFIG_KEY,L"BasicCleanup",opts.basicCleanup);
+        regNumber(CONFIG_KEY,L"IndentWidth",opts.indentWidth);
         regNumber(CONFIG_KEY,L"OutputMode",opts.outputMode);regNumber(CONFIG_KEY,L"WindowFrame",opts.windowFrame);
         regNumber(CONFIG_KEY,L"WindowButtons",opts.windowButtons);regNumber(CONFIG_KEY,L"WindowShadow",opts.windowShadow);
         regNumber(CONFIG_KEY,L"WindowPadding100",(DWORD)(opts.windowPadding*100+0.5f));regNumber(CONFIG_KEY,L"WindowRadius100",(DWORD)(opts.windowRadius*100+0.5f));
@@ -143,6 +147,7 @@ private:
             case CBorderHorizontal:opts.borderHorizontal=asLong(&a[0])!=0;break;
             case CBorderOuter:opts.borderOuter=asLong(&a[0])!=0;break;
             case CLogging:opts.logging=asLong(&a[0])!=0;break;
+            case CIndentWidth:if(n<3)return;opts.indentWidth=bound(asLong(&a[0]),0,7)+1;break;
             case CBasicCleanup:opts.basicCleanup=asLong(&a[0])!=0;break;
             case CNumbers:opts.lineNumbers=asLong(&a[0])!=0;break;
             case CFirstLine:ok=codeink::parseDecimal((const codeink::Ch*)t,v,end)&&!t[end]&&v>=1&&v<=999999&&v==(int)v;if(ok)opts.firstLine=(int)v;break;
@@ -221,7 +226,7 @@ private:
         MessageBoxW(GetForegroundWindow(),text,L"运行状态 · CodeInk",MB_OK|MB_ICONINFORMATION);dealloc(text);
     }
     void about(){
-        MessageBoxW(GetForegroundWindow(),L"CodeInk\r\n让代码在 PowerPoint 中清晰呈现，保持可编辑。\r\n\r\n版本：1.0.1\r\n作者：Iceriny\r\n\r\n代码高亮在本机完成。",L"关于 CodeInk",MB_OK|MB_ICONINFORMATION);
+        MessageBoxW(GetForegroundWindow(),L"CodeInk\r\n让代码在 PowerPoint 中清晰呈现，保持可编辑。\r\n\r\n版本：1.0.2\r\n作者：Iceriny\r\n\r\n代码高亮在本机完成。",L"关于 CodeInk",MB_OK|MB_ICONINFORMATION);
     }
 
 };

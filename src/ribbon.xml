@@ -16,7 +16,19 @@
         <group id="CodeInkSyntax" label="语言与主题">
           <comboBox id="CodeInkLanguage" label="语言" getText="GetLanguage" onChange="OnLanguage" getItemCount="LanguageCount" getItemLabel="LanguageLabel" sizeString="Cascadia Mono123" supertip="选择编程语言，或输入 cpp、python、js、ts 等语言名称或简称。Arduino 使用 C++ 语法。" getEnabled="GetEnabled" screentip="代码使用的编程语言" />
           <comboBox id="CodeInkTheme" label="主题" getText="GetTheme" onChange="OnTheme" getItemCount="ThemeCount" getItemLabel="ThemeLabel" sizeString="Cascadia Mono123" supertip="选择代码配色。不使用背景时，建议选择与幻灯片底色相近的浅色或深色主题。" getEnabled="GetEnabled" />
-          <checkBox id="CodeInkBasicCleanup" label="自动整理代码" onAction="OnBasicCleanup" getPressed="GetBasicCleanup" getEnabled="GetEnabled" supertip="排版、生成或粘贴时整理空格与缩进。关闭可保留代码的原有间距。" keytip="A" />
+          <box id="CodeInkCleanupRow" boxStyle="horizontal">
+            <checkBox id="CodeInkBasicCleanup" label="自动整理代码" onAction="OnBasicCleanup" getPressed="GetBasicCleanup" getEnabled="GetEnabled" supertip="排版、生成或粘贴时整理空格与缩进。关闭可保留代码的原有间距。" keytip="A" />
+            <dropDown id="CodeInkIndentWidth" label="缩进" onAction="OnIndentWidth" getSelectedItemIndex="GetIndentWidth" getEnabled="GetIndentEnabled" sizeString="4 空格" supertip="每级缩进使用的空格数。适用于代码块和续行整理；Python 保留原有缩进。">
+              <item id="Indent1" label="1 空格" />
+              <item id="Indent2" label="2 空格" />
+              <item id="Indent3" label="3 空格" />
+              <item id="Indent4" label="4 空格" />
+              <item id="Indent5" label="5 空格" />
+              <item id="Indent6" label="6 空格" />
+              <item id="Indent7" label="7 空格" />
+              <item id="Indent8" label="8 空格" />
+            </dropDown>
+          </box>
         </group>
         <group id="CodeInkType" label="文字排版">
           <comboBox id="CodeInkFontFamily" label="字体" getText="GetFontFamily" onChange="OnFontFamily" sizeString="Cascadia Mono" getEnabled="GetEnabled">

@@ -126,8 +126,9 @@ struct Writer {
     void copy(const Ch* s, int a, int b) { for (int j = a; j < b; ++j) put(s[j]); }
 };
 }
-int basicFormat(const Ch* s, int n, const Ch* language, Ch* out, int cap) {
+int basicFormat(const Ch* s, int n, const Ch* language, Ch* out, int cap, int indentWidth) {
     if (!s || n < 0 || !language || !out || cap < 1) return -1;
+    if (indentWidth < 1 || indentWidth > 8) indentWidth = 4;
     bool python = equal(language, u"python") || equal(language, u"py");
     bool js = equal(language, u"javascript") || equal(language, u"js") || equal(language, u"typescript") || equal(language, u"ts");
     bool json = equal(language, u"json") || equal(language, u"jsonc");
@@ -164,7 +165,7 @@ int basicFormat(const Ch* s, int n, const Ch* language, Ch* out, int cap) {
     for (int i = 0; i < n && !w.failed;) {
         if (start) {
             int columns = 0;
-            while (i < n && space(s[i])) { columns += s[i] == '\t' ? (python ? 8 : 4) - columns % (python ? 8 : 4) : 1; ++i; }
+            while (i < n && space(s[i])) { columns += s[i] == '\t' ? (python ? 8 : indentWidth) - columns % (python ? 8 : indentWidth) : 1; ++i; }
             if (base < 0 && i < n && !line(s[i])) base = columns;
             // Preserve continuation alignment and indentation-sensitive syntax.
             int indent = columns;
@@ -172,11 +173,11 @@ int basicFormat(const Ch* s, int n, const Ch* language, Ch* out, int cap) {
                 bool closer = s[i] == ')' || s[i] == ']' || (i < angleEnd && s[i] == '>');
                 bool leadingOperator = value && (s[i] == '+' || s[i] == '-' || s[i] == '<' || s[i] == '>' || s[i] == '&' || s[i] == '|');
                 int extra = (round || square || i < angleEnd || continuation || leadingOperator) && !closer && s[i] != '}' ? 1 : 0;
-                indent = (base < 0 ? 0 : base) + (depth - (s[i] == '}' && depth ? 1 : 0) + extra) * 4;
+                indent = (base < 0 ? 0 : base) + (depth - (s[i] == '}' && depth ? 1 : 0) + extra) * indentWidth;
             }
             if (!cpp && !python && !directive && !round && (!square || json) && i < n && !line(s[i]) && s[i] != '#') {
                 int level = depth + (json ? square : 0) - ((s[i] == '}' && depth > 0) || (json && s[i] == ']' && square > 0) ? 1 : 0);
-                indent = (base < 0 ? 0 : base) + level * 4;
+                indent = (base < 0 ? 0 : base) + level * indentWidth;
             }
             if (i == n || line(s[i])) indent = 0;
             for (int j = 0; j < indent; ++j) w.put(' ');

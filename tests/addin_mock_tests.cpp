@@ -99,7 +99,7 @@ int main(){
         assert(!checked(reloaded,L"GetLogging")&&!checked(reloaded,L"GetBorderVertical")&&checked(reloaded,L"GetBorderHorizontal")&&checked(reloaded,L"GetWindowFrame"));
         Value v=get(reloaded,L"GetWindowPadding");assert(u(v.v.bstrVal)==u"22.5");pass("preferences round-trip through the registry code after reconnecting");
     }
-    action(a,L"OnAbout");assert(lastTitle==u"关于 CodeInk"&&lastMessage.find(u"作者：Iceriny")!=U::npos&&lastMessage.find(u"1.0.1")!=U::npos&&lastMessage.find(u"首次安装")==U::npos&&lastMessage.find(u"新增")==U::npos&&lastMessage.find(u"日志")==U::npos);
+    action(a,L"OnAbout");assert(lastTitle==u"关于 CodeInk"&&lastMessage.find(u"作者：Iceriny")!=U::npos&&lastMessage.find(u"1.0.2")!=U::npos&&lastMessage.find(u"首次安装")==U::npos&&lastMessage.find(u"新增")==U::npos&&lastMessage.find(u"日志")==U::npos);
     pass("About shows product/version/author without setup notes or runtime diagnostics");
     action(a,L"OnBorders");assert(actions==1&&lastAction==Action::Borders);pass("border-only Ribbon action dispatches the dedicated operation, not format/rebuild");
     action(a,L"OnOpenLog");assert(lastMessage.find(u"没有可打开")!=U::npos&&!diagnosticLogging());
