@@ -6,6 +6,7 @@
           <button id="CodeInkFormat" label="高亮排版" size="large" imageMso="FontColorPicker" onAction="OnFormat" getEnabled="GetEnabled" screentip="更新所选代码的配色与排版" supertip="应用当前语言、主题、字体和背景。选中部分文字时，也会处理整个文本框或表格。组合代码块请使用“生成代码块”。" keytip="F" />
           <button id="CodeInkTable" label="生成代码块" size="large" imageMso="TableInsert" onAction="OnTable" getEnabled="GetEnabled" supertip="将所选代码生成表格或组合文本框。勾选“替换原对象”可在原位置更新。" keytip="G" />
           <button id="CodeInkClipboard" label="粘贴为代码" size="large" imageMso="Paste" onAction="OnClipboard" getEnabled="GetEnabled" supertip="将剪贴板纯文本生成代码块。开启“替换原对象”时，替换选中的文字对象；未选中时直接插入。" keytip="V" />
+          <checkBox id="CodeInkBasicCleanup" label="格式化" onAction="OnBasicCleanup" getPressed="GetBasicCleanup" getEnabled="GetEnabled" supertip="排版、生成或粘贴时整理空格与缩进。关闭可保留代码的原有间距。" keytip="A" />
           <menu id="CodeInkMore" label="更多操作" getEnabled="GetEnabled">
             <button id="CodeInkHighlight" label="仅改配色" onAction="OnHighlight" getEnabled="GetEnabled" supertip="保留文字、字号和布局。启用主题字形时一并更新粗体、斜体和下划线。" />
             <button id="CodeInkPlain" label="统一字色" onAction="OnPlain" getEnabled="GetEnabled" supertip="将文字统一为当前主题的基础字色。" />
@@ -16,26 +17,19 @@
         <group id="CodeInkSyntax" label="语言与主题">
           <comboBox id="CodeInkLanguage" label="语言" getText="GetLanguage" onChange="OnLanguage" getItemCount="LanguageCount" getItemLabel="LanguageLabel" sizeString="Cascadia Mono123" supertip="选择编程语言，或输入 cpp、python、js、ts 等语言名称或简称。Arduino 使用 C++ 语法。" getEnabled="GetEnabled" screentip="代码使用的编程语言" />
           <comboBox id="CodeInkTheme" label="主题" getText="GetTheme" onChange="OnTheme" getItemCount="ThemeCount" getItemLabel="ThemeLabel" sizeString="Cascadia Mono123" supertip="选择代码配色。不使用背景时，建议选择与幻灯片底色相近的浅色或深色主题。" getEnabled="GetEnabled" />
-          <box id="CodeInkCleanupRow" boxStyle="horizontal">
-            <checkBox id="CodeInkBasicCleanup" label="自动整理代码" onAction="OnBasicCleanup" getPressed="GetBasicCleanup" getEnabled="GetEnabled" supertip="排版、生成或粘贴时整理空格与缩进。关闭可保留代码的原有间距。" keytip="A" />
-            <dropDown id="CodeInkIndentWidth" label="缩进" onAction="OnIndentWidth" getSelectedItemIndex="GetIndentWidth" getEnabled="GetIndentEnabled" sizeString="4 空格" supertip="每级缩进使用的空格数。适用于代码块和续行整理；Python 保留原有缩进。">
-              <item id="Indent1" label="1 空格" />
-              <item id="Indent2" label="2 空格" />
-              <item id="Indent3" label="3 空格" />
-              <item id="Indent4" label="4 空格" />
-              <item id="Indent5" label="5 空格" />
-              <item id="Indent6" label="6 空格" />
-              <item id="Indent7" label="7 空格" />
-              <item id="Indent8" label="8 空格" />
-            </dropDown>
-          </box>
+          <comboBox id="CodeInkIndentWidth" label="缩进" onChange="OnIndentWidth" getText="GetIndentWidth" getEnabled="GetIndentEnabled" sizeString="4 空格" maxLength="4" supertip="每级缩进使用的空格数。适用于代码块和续行整理；Python 保留原有缩进。">
+            <item id="Indent1" label="1 空格" />
+            <item id="Indent2" label="2 空格" />
+            <item id="Indent3" label="3 空格" />
+            <item id="Indent4" label="4 空格" />
+            <item id="Indent5" label="5 空格" />
+            <item id="Indent6" label="6 空格" />
+            <item id="Indent7" label="7 空格" />
+            <item id="Indent8" label="8 空格" />
+          </comboBox>
         </group>
         <group id="CodeInkType" label="文字排版">
-          <comboBox id="CodeInkFontFamily" label="字体" getText="GetFontFamily" onChange="OnFontFamily" sizeString="Cascadia Mono" getEnabled="GetEnabled">
-            <item id="FontConsolas" label="Consolas" />
-            <item id="FontCascadia" label="Cascadia Mono" />
-            <item id="FontCourier" label="Courier New" />
-          </comboBox>
+          <comboBox id="CodeInkFontFamily" label="字体" getText="GetFontFamily" onChange="OnFontFamily" getItemCount="FontCount" getItemLabel="FontLabel" sizeString="Cascadia Mono" getEnabled="GetEnabled" supertip="从 PowerPoint 字体列表中选择等宽字体，也可输入名称。更改后点击“高亮排版”或“生成代码块”应用。" />
           <comboBox id="CodeInkFontSize" label="字号" getText="GetFontSize" onChange="OnFontSize" sizeString="Cascadia Mono" getEnabled="GetEnabled" supertip="输入 6～96 磅。更改后点击“高亮排版”或“生成代码块”应用。">
             <item id="Size12" label="12" />
             <item id="Size16" label="16" />
@@ -67,23 +61,18 @@
             <item id="OutputTable" label="逐行表格" />
             <item id="OutputBoxes" label="组合文本框" />
           </dropDown>
-          <box id="CodeInkNumberRow" boxStyle="horizontal">
-            <checkBox id="CodeInkLineNumbers" label="行号" onAction="OnNumbers" getPressed="GetNumbers" supertip="生成时在代码左侧显示行号。" getEnabled="GetEnabled" />
-            <editBox id="CodeInkFirstLine" label="起始" getText="GetFirstLine" onChange="OnFirstLine" getEnabled="GetNumbersEnabled" sizeString="100000" maxLength="6" supertip="第一行显示的行号，范围为 1～999999。" />
-          </box>
-          <box id="CodeInkOutputTools" boxStyle="horizontal">
-            <checkBox id="CodeInkReplace" label="替换原对象" onAction="OnReplace" getPressed="GetReplace" getEnabled="GetEnabled" supertip="生成成功后替换所选文字对象。关闭时保留原对象。" keytip="R" />
-            <menu id="CodeInkOutputOptions" label="选项" getEnabled="GetEnabled">
-            <menu id="CodeInkBordersMenu" label="表格边框" getEnabled="GetEnabled" supertip="设置生成表格的边框，或更新选中的表格。">
-              <checkBox id="CodeInkBorderVertical" label="行号分隔线" onAction="OnBorderVertical" getPressed="GetBorderVertical" getEnabled="GetEnabled" supertip="显示行号列与代码列之间的竖线。没有行号列时不显示。" />
-              <checkBox id="CodeInkBorderHorizontal" label="行间横线" onAction="OnBorderHorizontal" getPressed="GetBorderHorizontal" getEnabled="GetEnabled" supertip="显示相邻代码行之间的横线。" />
-              <checkBox id="CodeInkBorderOuter" label="表格外框" onAction="OnBorderOuter" getPressed="GetBorderOuter" getEnabled="GetEnabled" supertip="显示整张表格四周的边框。" />
-              <menuSeparator id="CodeInkBorderApplySeparator" />
-              <button id="CodeInkApplyBorders" onAction="OnBorders" getEnabled="GetEnabled" screentip="仅更新表格边框" supertip="只更新所选表格的边框，保留文字、配色、排版、背景和位置。" label="应用到选中表格" />
-            </menu>
-            <button id="CodeInkLayoutSettings" label="生成选项…" onAction="OnLayoutSettings" getEnabled="GetEnabled" supertip="设置表格读取方式和多选合并。" />
-            </menu>
-          </box>
+          <checkBox id="CodeInkLineNumbers" label="行号" onAction="OnNumbers" getPressed="GetNumbers" supertip="生成时在代码左侧显示行号。" getEnabled="GetEnabled" />
+          <editBox id="CodeInkFirstLine" label="起始" getText="GetFirstLine" onChange="OnFirstLine" getEnabled="GetNumbersEnabled" sizeString="100000" maxLength="6" supertip="第一行显示的行号，范围为 1～999999。" />
+          <checkBox id="CodeInkReplace" label="替换原对象" onAction="OnReplace" getPressed="GetReplace" getEnabled="GetEnabled" supertip="生成成功后替换所选文字对象。关闭时保留原对象。" keytip="R" />
+          <editBox id="CodeInkColumnCount" label="栏数" getText="GetColumnCount" onChange="OnColumnCount" getEnabled="GetEnabled" sizeString="200000" maxLength="3" screentip="栏数：0～200，0 为自动" />
+          <editBox id="CodeInkMaxColumnRows" label="行数" getText="GetMaxColumnRows" onChange="OnMaxColumnRows" getEnabled="GetEnabled" sizeString="200000" maxLength="3" screentip="每栏最多行数：0～200，0 为自动" />
+          <menu id="CodeInkBordersMenu" label="表格边框" getEnabled="GetEnabled">
+            <checkBox id="CodeInkBorderVertical" label="行号分隔线" onAction="OnBorderVertical" getPressed="GetBorderVertical" getEnabled="GetEnabled" />
+            <checkBox id="CodeInkBorderHorizontal" label="行间横线" onAction="OnBorderHorizontal" getPressed="GetBorderHorizontal" getEnabled="GetEnabled" />
+            <checkBox id="CodeInkBorderOuter" label="表格外框" onAction="OnBorderOuter" getPressed="GetBorderOuter" getEnabled="GetEnabled" />
+          </menu>
+          <button id="CodeInkApplyBorders" label="应用边框" onAction="OnBorders" getEnabled="GetEnabled" screentip="仅应用表格边框" />
+          <button id="CodeInkLayoutSettings" label="生成选项…" onAction="OnLayoutSettings" getEnabled="GetEnabled" />
         </group>
         <group id="CodeInkHelp" label="CodeInk">
           <menu id="CodeInkHelpMenu" label="帮助" size="large" imageMso="Help" getEnabled="GetEnabled">

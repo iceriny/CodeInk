@@ -1,26 +1,47 @@
 #include "render.h"
 #include "basicformat.h"
 using namespace codeink;
-static constexpr int MAX_CODE=50000,MAX_CELLS=512,MAX_ROWS=200;
+static constexpr int MAX_CODE=50000,MAX_CELLS=800,MAX_ROWS=200;
 static LONG rgb(DWORD x){return (LONG)(((x&255)<<16)|(x&0xFF00)|((x>>16)&255));}
 static HRESULT cellShape(IDispatch*t,int row,int col,Ref& out){Value a[]={Value::integer(row),Value::integer(col)};Ref cell;HRESULT hr=object(t,L"Cell",cell,2,a);return failed(hr)?hr:object(cell,L"Shape",out);}
 static HRESULT shapeRange(IDispatch*s,Ref& out){Ref f;HRESULT hr=object(s,L"TextFrame",f);return failed(hr)?hr:object(f,L"TextRange",out);}
 static int count(IDispatch*t,const wchar_t*which){Ref c;return failed(object(t,which,c))?0:getInt(c,L"Count");}
 static HRESULT setBstr(Value& value,BSTR text){if(!text)return E_OUTOFMEMORY;value.clear();value.v.vt=VT_BSTR;value.v.bstrVal=text;return S_OK;}
-static HRESULT normalized(Value& value,BSTR source,bool expandTabs=false){
+static HRESULT readTag(IDispatch*shape,const wchar_t*name,Value&value){
+    Ref tags;if(failed(object(shape,L"Tags",tags)))return S_FALSE;Value key=Value::text(name);
+    HRESULT hr=invoke(tags,L"Item",DISPATCH_METHOD|DISPATCH_PROPERTYGET,1,&key,&value);if(failed(hr))return hr;
+    return value.v.vt!=VT_BSTR||!SysStringLen(value.v.bstrVal)?S_FALSE:S_OK;
+}
+static HRESULT writeTag(IDispatch*shape,const wchar_t*name,const wchar_t*text){
+    Ref tags;HRESULT hr=object(shape,L"Tags",tags);if(failed(hr))return hr;
+    Value args[]={Value::text(name),Value::text(text)};return invoke(tags,L"Add",DISPATCH_METHOD,2,args);
+}
+// Layout metadata contains only roles and row counts, never a cached source.
+// Current editable text remains authoritative, including empty source lines.
+struct BlockLayout {int count=0,rows[200]={};bool numbers=false;};
+static HRESULT readBlockLayout(IDispatch*shape,BlockLayout&layout){
+    Value tag;HRESULT hr=readTag(shape,L"CODEINK_COLUMNS",tag);if(hr!=S_OK)return hr;
+    const wchar_t*s=tag.v.bstrVal;if(*s!='0'&&*s!='1')return E_FAIL;layout.numbers=*s++=='1';
+    int total=0;while(*s){if(*s++!=','||layout.count>=200)return E_FAIL;int n=0,digits=0;
+        while(*s>='0'&&*s<='9'){if(++digits>3)return E_FAIL;n=n*10+*s++-'0';}
+        if(!digits||n<1||n>200||(total+=n)>200)return E_FAIL;layout.rows[layout.count++]=n;}
+    return layout.count?S_OK:E_FAIL;
+}
+static HRESULT writeBlockLayout(IDispatch*shape,const ColumnLayout&layout,int lines,bool numbers){
+    wchar_t*text=(wchar_t*)alloc(1024*2);if(!text)return E_OUTOFMEMORY;text[0]=numbers?'1':'0';text[1]=0;
+    for(int c=0;c<layout.columns;++c){wchar_t n[16];number(n,layout.count(lines,c));catstr(text,1024,L",");catstr(text,1024,n);}
+    HRESULT hr=writeTag(shape,L"CODEINK_COLUMNS",text);dealloc(text);return hr;
+}
+static HRESULT normalized(Value& value,BSTR source){
     int n=(int)SysStringLen(source);
-    if(!expandTabs){
-        if(n>MAX_CODE)return E_FAIL;
-        BSTR b=SysAllocStringLen(nullptr,n);if(!b)return E_OUTOFMEMORY;int k=0;
-        for(int i=0;i<n;++i){wchar_t c=source[i];if(c=='\r'&&i+1<n&&source[i+1]=='\n')++i;
-            b[k++]=(c=='\n'||c=='\v'||c==0x2028||c==0x2029)?'\r':c;}
-        Value temp;HRESULT hr=setBstr(temp,b);if(failed(hr))return hr;return setBstr(value,SysAllocStringLen(b,k));
-    }
-    int len=normalizedLength((const Ch*)source,n);if(len<0||len>MAX_CODE)return E_FAIL;
-    BSTR b=SysAllocStringLen(nullptr,len);if(!b)return E_OUTOFMEMORY;normalize((const Ch*)source,n,(Ch*)b,len+1);return setBstr(value,b);
+    if(n>MAX_CODE)return E_FAIL;
+    BSTR b=SysAllocStringLen(nullptr,n);if(!b)return E_OUTOFMEMORY;int k=0;
+    for(int i=0;i<n;++i){wchar_t c=source[i];if(c=='\r'&&i+1<n&&source[i+1]=='\n')++i;
+        b[k++]=(c=='\n'||c=='\v'||c==0x2028||c==0x2029)?'\r':c;}
+    Value temp;HRESULT hr=setBstr(temp,b);if(failed(hr))return hr;return setBstr(value,SysAllocStringLen(b,k));
 }
 static HRESULT tidyText(Value& value,const Options&o){
-    Value source;HRESULT hr=normalized(source,value.v.bstrVal,false);if(failed(hr))return hr;
+    Value source;HRESULT hr=normalized(source,value.v.bstrVal);if(failed(hr))return hr;
     Items<Ch> buffer;if(!buffer.make(MAX_CODE+1))return E_OUTOFMEMORY;
     int n=basicFormat((const Ch*)source.v.bstrVal,SysStringLen(source.v.bstrVal),(const Ch*)o.language,buffer.data(),MAX_CODE+1,o.indentWidth);
     // If added whitespace would exceed the existing limit, keep the source.
@@ -29,13 +50,13 @@ static HRESULT tidyText(Value& value,const Options&o){
 }
 static HRESULT tidyCapture(Capture&cap,const Options&o){
     // Several code columns represent separate cells, not one source line.
-    if(cap.cols-(cap.gutter?1:0)>1){
-        for(int i=0;i<cap.segments.size();++i){Segment&s=cap.segments[i];if(s.number)continue;
+    if(!cap.codeColumns&&cap.cols-(cap.gutter?1:0)>1){
+        for(int i=0;i<cap.segments.size();++i){Segment&s=cap.segments[i];if(s.number||s.padding)continue;
             HRESULT hr=tidyText(s.text,o);if(failed(hr))return hr;s.length=SysStringLen(s.text.v.bstrVal);}
     }else{
         Value formatted=cap.text;HRESULT hr=tidyText(formatted,o);if(failed(hr))return hr;
         BSTR source=formatted.v.bstrVal;int total=SysStringLen(source),offset=0;
-        for(int i=0;i<cap.segments.size();++i){Segment&s=cap.segments[i];if(s.number)continue;
+        for(int i=0;i<cap.segments.size();++i){Segment&s=cap.segments[i];if(s.number||s.padding)continue;
             int breaks=lineCount((const Ch*)s.text.v.bstrVal,SysStringLen(s.text.v.bstrVal))-1,end=offset;
             while(end<total){if(source[end]=='\r'){if(!breaks)break;--breaks;}++end;}
             hr=setBstr(s.text,SysAllocStringLen(source+offset,end-offset));if(failed(hr))return hr;
@@ -52,9 +73,9 @@ static HRESULT prepareSegment(Segment& seg,bool format){
 }
 static HRESULT concatenate(Capture& cap){
     int total=0,used=0,previousRow=-1;
-    for(int i=0;i<cap.segments.size();++i){Segment&s=cap.segments[i];if(s.number)continue;total+=s.length+(used++?1:0);if(total>MAX_CODE)return E_FAIL;}
+    for(int i=0;i<cap.segments.size();++i){Segment&s=cap.segments[i];if(s.number||s.padding)continue;total+=s.length+(used++?1:0);if(total>MAX_CODE)return E_FAIL;}
     BSTR b=SysAllocStringLen(nullptr,total);if(!b)return E_OUTOFMEMORY;int k=0;used=0;
-    for(int i=0;i<cap.segments.size();++i){Segment&s=cap.segments[i];if(s.number)continue;if(used++)b[k++]=s.row==previousRow?'\t':'\r';s.start=k;memcpy(b+k,s.text.v.bstrVal,s.length*2);k+=s.length;previousRow=s.row;}
+    for(int i=0;i<cap.segments.size();++i){Segment&s=cap.segments[i];if(s.number||s.padding)continue;if(used++)b[k++]=!cap.codeColumns&&s.row==previousRow?'\t':'\r';s.start=k;memcpy(b+k,s.text.v.bstrVal,s.length*2);k+=s.length;previousRow=s.row;}
     b[k]=0;return setBstr(cap.text,b);
 }
 static bool hasGutter(Capture& cap){
@@ -96,7 +117,29 @@ static void wholeGroup(Ref&shape){
 static HRESULT captureGroup(IDispatch*shape,Capture&cap,const Options&o,bool format,const wchar_t**msg){
     Items<Ref> leaves;if(!leaves.make(MAX_CELLS))return E_OUTOFMEMORY;int n=0;
     HRESULT hr=textLeaves(shape,leaves,n,0);if(failed(hr)){*msg=L"组合过于复杂或包含嵌套表格，请先取消组合或单独选取代码对象。";return hr;}
-    if(!n)return S_FALSE;readingOrder(leaves,n);if(!cap.segments.make(n))return E_OUTOFMEMORY;
+    if(!n)return S_FALSE;
+    BlockLayout layout;hr=o.tableRead==1?S_FALSE:readBlockLayout(shape,layout);
+    if(failed(hr)){*msg=L"分栏结构无法读取，请检查代码块的栏和行号文本框。";return hr;}
+    if(hr==S_OK){
+        int stride=layout.numbers?2:1;if(n!=layout.count*stride){*msg=L"分栏文本框数量已改变，请将新增文字单独生成代码块。";return E_FAIL;}
+        if(!cap.segments.make(n))return E_OUTOFMEMORY;cap.grouped=true;cap.gutter=layout.numbers;cap.codeColumns=layout.count;cap.cols=n;cap.rows=0;
+        for(int i=0;i<n;++i){Value column,kind;float index=0;int end=0;
+            if(readTag(leaves[i],L"CODEINK_COLUMN",column)!=S_OK||readTag(leaves[i],L"CODEINK_NUMBER",kind)!=S_OK||
+               !parseDecimal((const Ch*)column.v.bstrVal,index,end)||column.v.bstrVal[end]||index<1||index>layout.count||index!=(int)index||
+               (!same(kind.v.bstrVal,L"0")&&!same(kind.v.bstrVal,L"1"))||(!layout.numbers&&same(kind.v.bstrVal,L"1"))){
+                *msg=L"分栏文本框结构已改变，请检查代码与行号文本框。";return E_FAIL;}
+            bool number=same(kind.v.bstrVal,L"1");int c=(int)index-1,target=c*stride+(layout.numbers&&!number?1:0);
+            Segment&s=cap.segments[target];if(s.shape){*msg=L"分栏文本框标记重复，请检查代码与行号文本框。";return E_FAIL;}
+            s.shape=leaves[i];s.row=c;s.col=target;s.number=number;
+        }
+        // Matching counts and distinct valid slots guarantee every role is present.
+        for(int i=0;i<n;++i){Segment&s=cap.segments[i];
+            if(failed(hr=prepareSegment(s,format)))return hr;
+            if(!s.number){int rows=lineCount((const Ch*)s.text.v.bstrVal,s.length);if(rows>cap.rows)cap.rows=rows;}
+        }
+        return S_OK;
+    }
+    readingOrder(leaves,n);if(!cap.segments.make(n))return E_OUTOFMEMORY;
     cap.grouped=true;cap.rows=0;cap.cols=0;float previousY=-1e6f;int col=0;
     for(int i=0;i<n;++i){Segment&seg=cap.segments[i];float y=getFloat(leaves[i],L"Top");
         if(i==0||y-previousY>3||previousY-y>3){++cap.rows;col=0;previousY=y;}
@@ -111,15 +154,30 @@ static HRESULT captureGroup(IDispatch*shape,Capture&cap,const Options&o,bool for
     return S_OK;
 }
 static HRESULT captureShape(IDispatch* shape,Capture& cap,const Options&o,bool format,const wchar_t**msg){
-    cap.table.take(nullptr);cap.decoration.take(nullptr);cap.segments.clear();cap.text.clear();cap.gutter=false;cap.grouped=false;cap.rows=cap.cols=0;cap.shape.set(shape);cap.left=getFloat(shape,L"Left",48);cap.top=getFloat(shape,L"Top",48);
+    cap.table.take(nullptr);cap.decoration.take(nullptr);cap.segments.clear();cap.text.clear();cap.gutter=false;cap.grouped=false;cap.rows=cap.cols=cap.codeColumns=0;cap.shape.set(shape);cap.left=getFloat(shape,L"Left",48);cap.top=getFloat(shape,L"Top",48);
     HRESULT hr=S_OK;
     if(getInt(shape,L"Type")==6){hr=captureGroup(shape,cap,o,format,msg);if(hr!=S_OK)return hr;}else if(getInt(shape,L"HasTable",0)){
         hr=object(shape,L"Table",cap.table);if(failed(hr))return hr;cap.rows=count(cap.table,L"Rows");cap.cols=count(cap.table,L"Columns");
-        if(cap.rows<1||cap.cols<1||cap.rows>MAX_ROWS||cap.cols>32||cap.rows*cap.cols>MAX_CELLS){*msg=L"表格超过 200 行或 512 个单元格，请缩小处理范围。";return E_FAIL;}
+        if(cap.rows<1||cap.cols<1||cap.rows>MAX_ROWS||cap.cols>400||cap.rows*cap.cols>MAX_CELLS){*msg=L"表格超过 200 行或 800 个单元格，请缩小处理范围。";return E_FAIL;}
         if(!cap.segments.make(cap.rows*cap.cols))return E_OUTOFMEMORY;
-        for(int r=0;r<cap.rows;++r)for(int c=0;c<cap.cols;++c){Segment&s=cap.segments[r*cap.cols+c];s.row=r;s.col=c;hr=cellShape(cap.table,r+1,c+1,s.shape);if(failed(hr)||failed(hr=prepareSegment(s,false)))return hr;}
-        cap.gutter=o.tableRead==2?cap.cols>=2:o.tableRead==0&&hasGutter(cap);
-        for(int i=0;i<cap.segments.size();++i){Segment&s=cap.segments[i];s.number=cap.gutter&&s.col==0;if(format&&!s.number){hr=normalized(s.text,s.original.v.bstrVal);if(failed(hr))return hr;s.length=(int)SysStringLen(s.text.v.bstrVal);}}
+        BlockLayout layout;hr=o.tableRead==1?S_FALSE:readBlockLayout(shape,layout);if(failed(hr))return hr;
+        bool tagged=hr==S_OK;int stride=tagged&&layout.numbers?2:1;
+        if(tagged&&cap.cols!=layout.count*stride){*msg=L"分栏表格的列结构已改变，请将代码列单独选取后重新生成。";return E_FAIL;}
+        cap.codeColumns=tagged?layout.count:0;cap.gutter=tagged&&layout.numbers;
+        int storedRows=0;for(int c=0;c<layout.count;++c)if(layout.rows[c]>storedRows)storedRows=layout.rows[c];
+        for(int r=0;r<cap.rows;++r)for(int c=0;c<cap.cols;++c){
+            int index=tagged?(c/stride*cap.rows+r)*stride+c%stride:r*cap.cols+c;
+            Segment&s=cap.segments[index];s.row=r;s.col=c;s.number=tagged&&layout.numbers&&c%2==0;
+            hr=cellShape(cap.table,r+1,c+1,s.shape);if(failed(hr)||failed(hr=prepareSegment(s,false)))return hr;
+        }
+        if(!tagged)cap.gutter=o.tableRead==2?cap.cols>=2:o.tableRead==0&&hasGutter(cap);
+        if(tagged&&storedRows==cap.rows)for(int c=0;c<layout.count;++c){
+            int used=layout.rows[c];for(int r=used;r<cap.rows;++r)for(int k=0;k<stride;++k)
+                if(cap.segments[(c*cap.rows+r)*stride+k].length)used=r+1;
+            for(int r=used;r<cap.rows;++r)for(int k=0;k<stride;++k)cap.segments[(c*cap.rows+r)*stride+k].padding=true;
+        }
+        for(int i=0;i<cap.segments.size();++i){Segment&s=cap.segments[i];if(!tagged)s.number=cap.gutter&&s.col==0;
+            if(format&&!s.number&&!s.padding){hr=normalized(s.text,s.original.v.bstrVal);if(failed(hr))return hr;s.length=(int)SysStringLen(s.text.v.bstrVal);}}
     }else{
         if(getInt(shape,L"HasTextFrame",0)==0)return S_FALSE;
         if(!cap.segments.make(1))return E_OUTOFMEMORY;cap.segments[0].shape.set(shape);hr=prepareSegment(cap.segments[0],format);if(failed(hr))return hr;
@@ -211,14 +269,14 @@ static DWORD tableBorderColor(const Options&o,const HighlightResult&colors){
     for(int shift=0;shift<=16;shift+=8){DWORD fgPart=(colors.fg>>shift)&255,bgPart=(bg>>shift)&255;value|=((fgPart*35+bgPart*65+50)/100)<<shift;}
     return value;
 }
-static HRESULT tableCellBorders(IDispatch*table,int row,int col,int rows,int cols,bool gutter,const Options&o,DWORD color){
+static HRESULT tableCellBorders(IDispatch*table,int row,int col,int rows,int cols,bool gutter,const Options&o,DWORD color,bool repeated){
     Value a[]={Value::integer(row),Value::integer(col)};Ref cell,borders;HRESULT hr=object(table,L"Cell",cell,2,a);
     if(failed(hr)||failed(hr=object(cell,L"Borders",borders)))return hr;
     const bool visible[]={
         row==1?o.borderOuter:o.borderHorizontal,
-        col==1?o.borderOuter:(gutter&&col==2&&o.borderVertical),
+        col==1?o.borderOuter:(gutter&&(repeated?col%2==0:col==2)&&o.borderVertical),
         row==rows?o.borderOuter:o.borderHorizontal,
-        col==cols?o.borderOuter:(gutter&&col==1&&o.borderVertical),
+        col==cols?o.borderOuter:(gutter&&(repeated?col%2==1:col==1)&&o.borderVertical),
         false,false
     };
     for(int i=1;i<=6;++i){Value index=Value::integer(i);Ref line,fore;
@@ -235,10 +293,10 @@ static HRESULT tableCellBorders(IDispatch*table,int row,int col,int rows,int col
     }
     return S_OK;
 }
-static HRESULT applyTableBorders(IDispatch*table,int rows,int cols,bool gutter,const Options&o,const HighlightResult&colors,Progress&p){
+static HRESULT applyTableBorders(IDispatch*table,int rows,int cols,bool gutter,const Options&o,const HighlightResult&colors,Progress&p,bool repeated=false){
     if(!table||rows<1||cols<1)return E_FAIL;DWORD color=tableBorderColor(o,colors);
     for(int r=1;r<=rows;++r){if(!p.pump())return (HRESULT)0x80004004;
-        for(int c=1;c<=cols;++c){HRESULT hr=tableCellBorders(table,r,c,rows,cols,gutter,o,color);if(failed(hr))return hr;}}
+        for(int c=1;c<=cols;++c){HRESULT hr=tableCellBorders(table,r,c,rows,cols,gutter,o,color,repeated);if(failed(hr))return hr;}}
     return S_OK;
 }
 static HRESULT typography(IDispatch*shape,IDispatch*range,const Options&o,float fs,bool gutter,bool compact,const HighlightResult&colors,bool transparent=false){
@@ -274,36 +332,36 @@ static HRESULT verifyAndWrite(Segment&s,bool format){
     return S_OK;
 }
 static HRESULT recolor(Capture&cap,const HighlightItem&item,const HighlightResult&all,const Options&o,Action action,Progress&p){
-    if(action==Action::Borders)return applyTableBorders(cap.table,cap.rows,cap.cols,cap.gutter,o,all,p);
+    if(action==Action::Borders)return applyTableBorders(cap.table,cap.rows,cap.cols,cap.gutter,o,all,p,cap.codeColumns>0);
     const bool format=action==Action::Format,plain=action==Action::Plain;HRESULT hr=S_OK;int next=o.firstLine;
     if(format&&cap.table){background(cap.shape,o,all);const wchar_t*props[]={L"FirstRow",L"LastRow",L"FirstCol",L"LastCol",L"HorizBanding",L"VertBanding"};for(int j=0;j<6;++j)put(cap.table,props[j],Value::boolean(false));}
     for(int i=0;i<cap.segments.size();++i){Segment&s=cap.segments[i];if(!p.pump())return (HRESULT)0x80004004;
         if(failed(hr=verifyAndWrite(s,format)))return hr;
         if(format){
-            if(s.number){int lines=1;for(int j=i+1;j<cap.segments.size()&&cap.segments[j].row==s.row;++j){int n=lineCount((const Ch*)cap.segments[j].text.v.bstrVal,cap.segments[j].length);if(n>lines)lines=n;}Value nums=makeNumbers(next,lines);if(nums.v.vt!=VT_BSTR)return E_OUTOFMEMORY;hr=put(s.range,L"Text",nums);if(failed(hr))return hr;next+=lines;}
+            if(s.number&&!s.padding){int lines=1;for(int j=i+1;j<cap.segments.size()&&cap.segments[j].row==s.row;++j){int n=lineCount((const Ch*)cap.segments[j].text.v.bstrVal,cap.segments[j].length);if(n>lines)lines=n;}Value nums=makeNumbers(next,lines);if(nums.v.vt!=VT_BSTR)return E_OUTOFMEMORY;hr=put(s.range,L"Text",nums);if(failed(hr))return hr;next+=lines;}
             if(failed(hr=typography(s.shape,s.range,o,o.fontSize,s.number,cap.rows>1,all)))return hr;
 
         }
-        if(s.number)hr=colorRange(s.range,plain?all.fg:all.gutter);else hr=applyTokens(s.range,item,s.start,s.length,all,o,plain,p);
+        if(s.number)hr=colorRange(s.range,plain?all.fg:all.gutter);else if(!s.padding)hr=applyTokens(s.range,item,s.start,s.length,all,o,plain,p);
         if(failed(hr))return hr;
     }
     if(format&&cap.table){
-        if(failed(hr=applyTableBorders(cap.table,cap.rows,cap.cols,cap.gutter,o,all,p)))return hr;
+        if(failed(hr=applyTableBorders(cap.table,cap.rows,cap.cols,cap.gutter,o,all,p,cap.codeColumns>0)))return hr;
         Ref rows;if(!failed(object(cap.table,L"Rows",rows)))for(int r=0;r<cap.rows;++r){
-            int lines=1;for(int j=0;j<cap.cols;++j){Segment&s=cap.segments[r*cap.cols+j];if(s.number)continue;
+            int lines=1;for(int j=0;j<cap.segments.size();++j){Segment&s=cap.segments[j];if(s.row!=r||s.number||s.padding)continue;
                 int n=lineCount((const Ch*)s.text.v.bstrVal,s.length);if(n>lines)lines=n;}
             Value index=Value::integer(r+1);Ref row;if(!failed(object(rows,L"Item",row,1,&index)))
                 put(row,L"Height",Value::real(lines*lineHeight(o,o.fontSize)+(cap.rows>1?0:16)));
         }
-        if(cap.gutter&&cap.cols==2){
+        if(cap.gutter&&(cap.cols==2||cap.codeColumns>0)){
             float measured=0;int numberCount=0;
-            for(int i=0;i<cap.segments.size();++i)if(cap.segments[i].number){float w=getFloat(cap.segments[i].range,L"BoundWidth");if(w>measured)measured=w;
+            for(int i=0;i<cap.segments.size();++i)if(cap.segments[i].number&&!cap.segments[i].padding){float w=getFloat(cap.segments[i].range,L"BoundWidth");if(w>measured)measured=w;
                 numberCount+=lineCount((const Ch*)cap.segments[i].text.v.bstrVal,cap.segments[i].length);}
             float gutter=narrowGutterWidth(o.firstLine,numberCount,o.fontSize,measured),width=getFloat(cap.shape,L"Width");
-            if(width-gutter<48)return E_FAIL;
-            Ref columns,one,two;Value first=Value::integer(1),second=Value::integer(2);
-            if(failed(hr=object(cap.table,L"Columns",columns))||failed(hr=object(columns,L"Item",one,1,&first))||failed(hr=object(columns,L"Item",two,1,&second)))return hr;
-            if(failed(hr=put(one,L"Width",Value::real(gutter)))||failed(hr=put(two,L"Width",Value::real(width-gutter))))return hr;
+            int pairs=cap.codeColumns?cap.codeColumns:1;float columnWidth=width/pairs;if(columnWidth-gutter<48)return E_FAIL;
+            Ref columns;if(failed(hr=object(cap.table,L"Columns",columns)))return hr;
+            for(int c=0;c<pairs*2;++c){Ref column;Value index=Value::integer(c+1);
+                if(failed(hr=object(columns,L"Item",column,1,&index))||failed(hr=put(column,L"Width",Value::real(c%2?columnWidth-gutter:gutter))))return hr;}
         }
     }
     return S_OK;
@@ -394,11 +452,11 @@ static float measureNumber(IDispatch*shapes,int last,const Options&o,float fs){
     }
     return width;
 }
-static HRESULT setColumns(IDispatch*table,float gutter,float width){
-    Ref columns,one,two;Value first=Value::integer(1),second=Value::integer(2);HRESULT hr;
-    if(failed(hr=object(table,L"Columns",columns))||failed(hr=object(columns,L"Item",one,1,&first))||failed(hr=object(columns,L"Item",two,1,&second)))return hr;
-    if(failed(hr=put(one,L"Width",Value::real(gutter))))return hr;
-    return put(two,L"Width",Value::real(width-gutter));
+static HRESULT setColumns(IDispatch*table,float gutter,float width,int count,bool numbers){
+    Ref columns;HRESULT hr=object(table,L"Columns",columns);if(failed(hr))return hr;int stride=numbers?2:1;
+    for(int c=0;c<count*stride;++c){Ref column;Value index=Value::integer(c+1);
+        if(failed(hr=object(columns,L"Item",column,1,&index))||failed(hr=put(column,L"Width",Value::real(numbers&&c%2==0?gutter:width-gutter))))return hr;}
+    return S_OK;
 }
 static HRESULT writeLine(IDispatch*shape,BSTR source,LineSpan line,const HighlightItem&item,const HighlightResult&colors,const Options&o,float fs,bool transparent,Progress&p){
     Ref range;HRESULT hr=shapeRange(shape,range);if(failed(hr))return hr;
@@ -417,14 +475,16 @@ static HRESULT writeNumber(IDispatch*shape,int value,const HighlightResult&color
 }
 static HRESULT createBlock(IDispatch*shapes,Capture&source,const HighlightItem&item,const HighlightResult&colors,const Options&o,CreatedBlock&out,Progress&p){
     BSTR text=source.text.v.bstrVal;int length=SysStringLen(text),lines=lineCount((const Ch*)text,length),cols=displayColumns((const Ch*)text,length);
-    if(lines>MAX_ROWS)return E_FAIL;if(cols<6)cols=6;Items<LineSpan> spans;if(!spans.make(lines))return E_OUTOFMEMORY;
+    ColumnLayout layout;if(!columnLayout(lines,o.columnCount,o.maxColumnRows,o.columnOverflow,layout))return E_FAIL;
+    if(cols<6)cols=6;Items<LineSpan> spans;if(!spans.make(lines))return E_OUTOFMEMORY;
     if(splitLines((const Ch*)text,length,spans.data(),lines)!=lines)return E_FAIL;
-    if(!out.pending.make(lines*(o.lineNumbers?2:1)+4))return E_OUTOFMEMORY;
+    if(!out.pending.make(layout.columns*(o.lineNumbers?2:1)+4))return E_OUTOFMEMORY;
     const float fs=o.fontSize;
     const float measured=o.lineNumbers?measureNumber(shapes,o.firstLine+lines-1,o,fs):-1;
     const float gutter=o.lineNumbers?narrowGutterWidth(o.firstLine,lines,fs,measured):0;
-    const float pitch=lineHeight(o,fs),height=lines*pitch;
-    float width=cols*fs*0.62f+18+gutter;if(width<180)width=180;
+    const float pitch=lineHeight(o,fs),height=layout.rows*pitch;
+    float columnWidth=cols*fs*0.62f+18+gutter;if(columnWidth<180)columnWidth=180;
+    const float width=columnWidth*layout.columns;
     const float left=source.left,top=source.top;
     auto geo=[&](float w,float h,float size){return o.windowFrame?windowGeometry(w,h,size,o.windowPadding,o.windowButtons):WindowGeometry{w,h,0,0,0,0};};
     WindowGeometry g=geo(width,height,fs);
@@ -434,21 +494,30 @@ static HRESULT createBlock(IDispatch*shapes,Capture&source,const HighlightItem&i
     float x=left+g.contentX,y=top+g.contentY;
     if(o.outputMode==0){
         // Every source line, including an empty line, is a separate NATIVE table row.
-        Value a[]={Value::integer(lines),Value::integer(o.lineNumbers?2:1),Value::real(x),Value::real(y),Value::real(width),Value::real(height)};
+        const int stride=o.lineNumbers?2:1,physicalColumns=layout.columns*stride;
+        Value a[]={Value::integer(layout.rows),Value::integer(physicalColumns),Value::real(x),Value::real(y),Value::real(width),Value::real(height)};
         if(failed(hr=object(shapes,L"AddTable",out.content,6,a)))return hr;Ref table;
         if(failed(hr=object(out.content,L"Table",table)))return hr;
         const wchar_t*props[]={L"FirstRow",L"LastRow",L"FirstCol",L"LastCol",L"HorizBanding",L"VertBanding"};for(int i=0;i<6;++i)put(table,props[i],Value::boolean(false));
         if(!o.windowFrame)background(out.content,o,colors);
         else {Ref fill;if(!failed(object(out.content,L"Fill",fill)))put(fill,L"Visible",Value::integer(0));}
-        if(o.lineNumbers&&failed(hr=setColumns(table,gutter,width)))return hr;
+        if(failed(hr=setColumns(table,gutter,columnWidth,layout.columns,o.lineNumbers)))return hr;
         Ref rows;if(failed(hr=object(table,L"Rows",rows)))return hr;
-        for(int r=0;r<lines;++r){if(!p.pump())return (HRESULT)0x80004004;Ref shape;
-            int codeCol=o.lineNumbers?2:1;
-            if(failed(hr=cellShape(table,r+1,codeCol,shape))||failed(hr=writeLine(shape,text,spans[r],item,colors,o,fs,o.windowFrame,p)))return hr;
-            if(o.lineNumbers){if(failed(hr=cellShape(table,r+1,1,shape))||failed(hr=writeNumber(shape,o.firstLine+r,colors,o,fs,o.windowFrame)))return hr;}
+        for(int c=0;c<layout.columns;++c)for(int r=0;r<layout.rows;++r){if(!p.pump())return (HRESULT)0x80004004;Ref shape;
+            int first=layout.first(lines,c),count=layout.count(lines,c),codeCol=c*stride+stride;
+            LineSpan line=r<count?spans[first+r]:LineSpan{length,0};
+            if(failed(hr=cellShape(table,r+1,codeCol,shape))||failed(hr=writeLine(shape,text,line,item,colors,o,fs,o.windowFrame,p)))return hr;
+            if(o.lineNumbers){
+                if(failed(hr=cellShape(table,r+1,c*stride+1,shape)))return hr;
+                if(r<count){if(failed(hr=writeNumber(shape,o.firstLine+first+r,colors,o,fs,o.windowFrame)))return hr;}
+                else {Ref range;if(failed(hr=shapeRange(shape,range))||failed(hr=put(range,L"Text",Value::text(L"")))||failed(hr=typography(shape,range,o,fs,true,true,colors,o.windowFrame)))return hr;}
+            }
+        }
+        for(int r=0;r<layout.rows;++r){
             Ref row;Value index=Value::integer(r+1);if(failed(hr=object(rows,L"Item",row,1,&index))||failed(hr=put(row,L"Height",Value::real(pitch))))return hr;
         }
-        if(failed(hr=applyTableBorders(table,lines,o.lineNumbers?2:1,o.lineNumbers,o,colors,p)))return hr;
+        if(failed(hr=applyTableBorders(table,layout.rows,physicalColumns,o.lineNumbers,o,colors,p,true)))return hr;
+        if(failed(hr=writeBlockLayout(out.content,layout,lines,o.lineNumbers)))return hr;
         // Office can enforce a larger minimum height for the chosen installed font.
         float actualHeight=getFloat(out.content,L"Height",height);
         if(actualHeight!=height)g=geo(width,actualHeight,fs);
@@ -457,30 +526,39 @@ static HRESULT createBlock(IDispatch*shapes,Capture&source,const HighlightItem&i
         if(out.used){if(failed(hr=groupObjects(shapes,out.pending,out.used,out.decoration)))return hr;out.pending.clear();out.used=0;
             Value front=Value::integer(0);if(failed(hr=invoke(out.content,L"ZOrder",DISPATCH_METHOD,1,&front)))return hr;}
     }else{
-        for(int r=0;r<lines;++r){if(!p.pump())return (HRESULT)0x80004004;Ref shape;
-            if(o.lineNumbers){if(failed(hr=addTextBox(shapes,x,y+r*pitch,gutter,pitch,shape))||failed(hr=out.add(shape))||failed(hr=writeNumber(shape,o.firstLine+r,colors,o,fs,true)))return hr;}
-            if(failed(hr=addTextBox(shapes,x+gutter,y+r*pitch,width-gutter,pitch,shape))||failed(hr=out.add(shape))||failed(hr=writeLine(shape,text,spans[r],item,colors,o,fs,true,p)))return hr;
+        for(int c=0;c<layout.columns;++c){if(!p.pump())return (HRESULT)0x80004004;
+            int first=layout.first(lines,c),count=layout.count(lines,c);wchar_t column[16];number(column,c+1);
+            if(o.lineNumbers){Ref shape,range;
+                if(failed(hr=addTextBox(shapes,x+c*columnWidth,y,gutter,count*pitch,shape))||failed(hr=out.add(shape))||failed(hr=shapeRange(shape,range)))return hr;
+                Value numbers=makeNumbers(o.firstLine+first,count);if(numbers.v.vt!=VT_BSTR)return E_OUTOFMEMORY;
+                if(failed(hr=put(range,L"Text",numbers))||failed(hr=typography(shape,range,o,fs,true,true,colors,true))||failed(hr=fontStyle(range,0))
+                    ||failed(hr=writeTag(shape,L"CODEINK_COLUMN",column))||failed(hr=writeTag(shape,L"CODEINK_NUMBER",L"1")))return hr;
+            }
+            Ref shape;LineSpan span{spans[first].start,spans[first+count-1].start+spans[first+count-1].length-spans[first].start};
+            if(failed(hr=addTextBox(shapes,x+c*columnWidth+gutter,y,columnWidth-gutter,count*pitch,shape))||failed(hr=out.add(shape))
+                ||failed(hr=writeLine(shape,text,span,item,colors,o,fs,true,p))||failed(hr=writeTag(shape,L"CODEINK_COLUMN",column))||failed(hr=writeTag(shape,L"CODEINK_NUMBER",L"0")))return hr;
             Ref line;if(!failed(object(shape,L"Line",line)))put(line,L"Visible",Value::integer(0));
         }
         if(failed(hr=groupObjects(shapes,out.pending,out.used,out.content)))return hr;out.pending.clear();out.used=0;
+        if(failed(hr=writeBlockLayout(out.content,layout,lines,o.lineNumbers)))return hr;
     }
     return S_OK;
 }
 
-static HRESULT clipboardCapture(CaptureSet&set,bool expandTabs=true){
+static HRESULT clipboardCapture(CaptureSet&set){
     if(!OpenClipboard(GetForegroundWindow()))return E_FAIL;HANDLE h=GetClipboardData(13);wchar_t*p=h?(wchar_t*)GlobalLock(h):nullptr;HRESULT hr=E_FAIL;
-    if(p){SIZE_T max=GlobalSize(h)/2;int n=0;while((SIZE_T)n<max&&n<=MAX_CODE&&p[n])++n;if(n>0&&n<=MAX_CODE&&(SIZE_T)n<max&&set.objects.make(1)){Value original=Value::textLen(p,n);hr=normalized(set.objects[0].text,original.v.bstrVal,expandTabs);if(!failed(hr))set.count=1;}GlobalUnlock(h);}CloseClipboard();return hr;
+    if(p){SIZE_T max=GlobalSize(h)/2;int n=0;while((SIZE_T)n<max&&n<=MAX_CODE&&p[n])++n;if(n>0&&n<=MAX_CODE&&(SIZE_T)n<max&&set.objects.make(1)){Value original=Value::textLen(p,n);hr=normalized(set.objects[0].text,original.v.bstrVal);if(!failed(hr))set.count=1;}GlobalUnlock(h);}CloseClipboard();return hr;
 }
-static HRESULT flattenForTable(CaptureSet&set,bool merge,bool expandTabs=true){
+static HRESULT flattenForTable(CaptureSet&set,bool merge){
     if(merge&&set.count>1){int total=0;for(int i=0;i<set.count;++i){total+=(int)SysStringLen(set.objects[i].text.v.bstrVal)+(i?2:0);if(total>MAX_CODE)return E_FAIL;}BSTR b=SysAllocStringLen(nullptr,total);if(!b)return E_OUTOFMEMORY;int k=0;
-        for(int i=0;i<set.count;++i){if(i){b[k++]='\r';b[k++]='\r';}BSTR t=set.objects[i].text.v.bstrVal;int n=SysStringLen(t);memcpy(b+k,t,n*2);k+=n;}b[k]=0;Value value;setBstr(value,b);return normalized(set.objects[0].text,value.v.bstrVal,expandTabs);
+        for(int i=0;i<set.count;++i){if(i){b[k++]='\r';b[k++]='\r';}BSTR t=set.objects[i].text.v.bstrVal;int n=SysStringLen(t);memcpy(b+k,t,n*2);k+=n;}b[k]=0;Value value;setBstr(value,b);return normalized(set.objects[0].text,value.v.bstrVal);
     }
-    for(int i=0;i<set.count;++i){Value source=set.objects[i].text;HRESULT hr=normalized(set.objects[i].text,source.v.bstrVal,expandTabs);if(failed(hr))return hr;}return S_OK;
+    for(int i=0;i<set.count;++i){Value source=set.objects[i].text;HRESULT hr=normalized(set.objects[i].text,source.v.bstrVal);if(failed(hr))return hr;}return S_OK;
 }
 HRESULT executeAction(IDispatch*app,const Options&o,Action action,wchar_t*status,int sc,wchar_t*error,int ec,Progress&p){
     copystr(error,ec,L"操作未完成。若已改变部分格式，请按 Ctrl+Z 撤销本次操作。");
     const bool table=action==Action::Table||action==Action::Clipboard;const wchar_t*msg=nullptr;CaptureSet set,clipboardTargets;
-    HRESULT hr=action==Action::Clipboard?clipboardCapture(set,false):captureSelection(app,set,o,action==Action::Format&&!o.basicCleanup,&msg);
+    HRESULT hr=action==Action::Clipboard?clipboardCapture(set):captureSelection(app,set,o,action==Action::Format&&!o.basicCleanup,&msg);
     if(failed(hr)){copystr(error,ec,msg?msg:L"无法读取剪贴板的纯文本代码。");return hr;}
     if(action==Action::Clipboard){
         const wchar_t*ignored=nullptr;
@@ -497,13 +575,21 @@ HRESULT executeAction(IDispatch*app,const Options&o,Action action,wchar_t*status
         copystr(error,ec,L"此对象是组合代码。修改字体、行距或容器，请勾选“替换原对象”，再点击“生成代码块”。\r\n只修改字色可直接点击“仅改配色”。本次未改动对象。");return E_FAIL;}
 
     int outputCount=table&&o.merge?1:set.count;
-    if(table&&failed(hr=flattenForTable(set,o.merge,false))){copystr(error,ec,L"合并后超过 50,000 个字符，请拆分代码。");return hr;}
+    if(table&&failed(hr=flattenForTable(set,o.merge))){copystr(error,ec,L"合并后超过 50,000 个字符，请拆分代码。");return hr;}
     if(o.basicCleanup&&(table||action==Action::Format))for(int i=0;i<outputCount;++i){
         hr=table?tidyText(set.objects[i].text,o):tidyCapture(set.objects[i],o);
         if(!failed(hr)&&!table)hr=concatenate(set.objects[i]);
         if(failed(hr)){copystr(error,ec,L"代码整理未完成，原文未改动。请减少本次处理内容后重试。");return hr;}
     }
-    if(table)for(int i=0;i<outputCount;++i)if(lineCount((const Ch*)set.objects[i].text.v.bstrVal,SysStringLen(set.objects[i].text.v.bstrVal))>MAX_ROWS){copystr(error,ec,L"每张代码表格最多 200 行；请把较长代码拆到多页。");return E_FAIL;}
+    if(table)for(int i=0;i<outputCount;++i){
+        int lines=lineCount((const Ch*)set.objects[i].text.v.bstrVal,SysStringLen(set.objects[i].text.v.bstrVal));
+        if(lines>MAX_ROWS){copystr(error,ec,L"每个代码块最多 200 行；请把较长代码拆到多页。");return E_FAIL;}
+        ColumnLayout layout;if(!columnLayout(lines,o.columnCount,o.maxColumnRows,o.columnOverflow,layout)){
+            wchar_t n[24];copystr(error,ec,L"分栏容量不足：至少 ");
+            number(n,o.maxColumnRows?(lines+o.maxColumnRows-1)/o.maxColumnRows:1);catstr(error,ec,n);catstr(error,ec,L" 栏，或每栏 ");
+            number(n,layout.rows);catstr(error,ec,n);catstr(error,ec,L" 行。");return E_FAIL;
+        }
+    }
     Ref shapes;if(table&&failed(hr=getSlide(app,shapes))){copystr(error,ec,L"请切换到普通编辑视图中的一页幻灯片。");return hr;}
     Items<BSTR> texts;if(!texts.make(outputCount))return E_OUTOFMEMORY;for(int i=0;i<outputCount;++i)texts[i]=set.objects[i].text.v.bstrVal;
     HighlightResult result;

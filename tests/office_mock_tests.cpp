@@ -64,7 +64,7 @@ HRESULT invokeEngine(const Options&,const BSTR* texts,int n,HighlightResult&resu
 }
 struct Node;
 struct World {
-    std::vector<std::unique_ptr<Node>> nodes;int nextId=1;bool failGroup=false,ignoreBorderVisible=true;float minRow=0;
+    std::vector<std::unique_ptr<Node>> nodes;int nextId=1,tagReads=0;bool failGroup=false,ignoreBorderVisible=true;float minRow=0;
     Node* make(const char*kind,Node*owner=nullptr);
     Node* shape(int type,float x,float y,float width,float height);
     std::vector<Node*> top()const;
@@ -106,6 +106,9 @@ HRESULT Node::Invoke(DISPID id,REFIID,LCID,WORD flags,DISPPARAMS*p,VARIANT*r,EXC
     }
     if(m==u"Delete"&&kind=="shape"){dead=true;return S_OK;}
     if(m==u"ZOrder"||m==u"Select"||m==u"Solid")return S_OK;
+    if(m==u"Tags")return obj(r,link(m,"tags"));
+    if(m==u"Add"&&kind=="tags"){props[text(arg(0))]=Value::text(asText(&arg(1)));return S_OK;}
+    if(m==u"Item"&&kind=="tags"){++world->tagReads;if(!(flags&DISPATCH_METHOD))return DISP_E_MEMBERNOTFOUND;auto it=props.find(text(arg(0)));return val(r,it==props.end()?Value::text(L""):it->second);}
     if(m==u"ParentGroup"){if(!parentGroup)return E_FAIL;return obj(r,parentGroup);}
     if(m==u"Parent"){return owner?obj(r,owner):E_FAIL;}
     if(m==u"Type")return val(r,Value::integer(type));
@@ -208,6 +211,79 @@ int main(){
         assert(c.cell(0,0)->code==u"98"&&c.cell(2,0)->code==u"100");assert(std::abs(c.table()->widths[0]-39)<0.01f);
         assert(c.table()->widths[0]<c.table()->widths[1]);pass("gutter uses measured font width and 98-to-100 digit boundary");
     }
+    for(bool numbers:{false,true}){
+        Case c(u"a\r\rb\rc\rd\re\r",numbers);c.opts.columnCount=2;c.opts.firstLine=98;assert(c.run()==S_OK);
+        int stride=numbers?2:1;assert(c.table()->rows==4&&c.table()->cols==2*stride);
+        assert(c.cell(0,stride-1)->code==u"a"&&c.cell(0,2*stride-1)->code==u"d");
+        assert(c.cell(2,2*stride-1)->code.empty()&&c.cell(3,2*stride-1)->code.empty());
+        if(numbers){assert(c.cell(0,0)->code==u"98"&&c.cell(0,2)->code==u"102"&&c.cell(2,2)->code==u"104"&&c.cell(3,2)->code.empty());
+            assert(c.visible(0,0,4)&&c.visible(0,1,2)&&c.visible(0,2,4)&&c.visible(0,3,2));assert(!c.visible(0,1,4)&&!c.visible(0,2,2));}
+        Capture rec;const wchar_t*msg=nullptr;assert(captureShape(c.out.content,rec,c.opts,false,&msg)==S_OK);
+        assert(rec.codeColumns==2&&text(rec.text.v)==text(c.source.text.v));
+        assert(tidyCapture(rec,c.opts)==S_OK&&concatenate(rec)==S_OK&&text(rec.text.v)==text(c.source.text.v));
+        assert(recolor(rec,c.item,c.colors,c.opts,Action::Format,c.progress)==S_OK);
+        assert(captureShape(c.out.content,rec,c.opts,false,&msg)==S_OK&&text(rec.text.v)==text(c.source.text.v));
+        pass("odd column table preserves blank source rows, excludes padding, repeats gutters and formats in source order");
+    }
+    for(bool numbers:{false,true}){
+        Case c(u"a\rb\rc\rd\re\rf\rg",numbers);c.opts.columnCount=3;assert(c.run()==S_OK);
+        Capture rec;const wchar_t*msg=nullptr;assert(captureShape(c.out.content,rec,c.opts,false,&msg)==S_OK);
+        assert(tidyCapture(rec,c.opts)==S_OK&&concatenate(rec)==S_OK&&text(rec.text.v)==text(c.source.text.v));
+        assert(recolor(rec,c.item,c.colors,c.opts,Action::Format,c.progress)==S_OK);
+        assert(captureShape(c.out.content,rec,c.opts,false,&msg)==S_OK&&text(rec.text.v)==text(c.source.text.v));
+        pass("formatting skips padding between the second and third code columns without consuming source lines");
+    }
+    for(bool numbers:{false,true}){
+        Case c(u"/*\ra\rb\rc\rd\re\r*/",numbers);c.opts.columnCount=2;c.opts.outputMode=1;assert(c.run()==S_OK);
+        Node*g=(Node*)c.out.content.p;int stride=numbers?2:1;assert(g->type==6&&g->members.size()==2*stride);
+        assert(g->members[stride-1]->code==u"/*\ra\rb\rc"&&g->members[2*stride-1]->code==u"d\re\r*/");
+        if(numbers)assert(g->members[0]->code==u"1\r2\r3\r4"&&g->members[2]->code==u"5\r6\r7");
+        Capture rec;const wchar_t*msg=nullptr;assert(captureShape(g,rec,c.opts,false,&msg)==S_OK&&text(rec.text.v)==text(c.source.text.v));
+        for(Node*s:g->members)s->props[u"Top"]=Value::real(s->value(u"Top")+s->id);
+        assert(captureShape(g,rec,c.opts,false,&msg)==S_OK&&text(rec.text.v)==text(c.source.text.v));
+        assert(recolor(rec,c.item,c.colors,c.opts,Action::Color,c.progress)==S_OK);
+        for(Node*s:g->members)if(s->links[u"Tags"]->props[u"CODEINK_NUMBER"].v.bstrVal[0]=='0')for(auto color:s->ink)assert(color==(DWORD)rgb(0xABCDEF));
+        pass("each column is one editable multiline textbox; continuous gutter numbering and source order survive movement");
+    }
+    {
+        U code;for(int i=0;i<200;++i){if(i)code+=u'\r';for(char c:std::to_string(i))code+=(char16_t)c;}
+        Case c(code,true);c.opts.columnCount=200;c.opts.outputMode=1;assert(c.run()==S_OK);
+        Node*g=(Node*)c.out.content.p;assert(g->members.size()==400);std::reverse(g->members.begin(),g->members.end());
+        Capture rec;const wchar_t*msg=nullptr;int before=c.world.tagReads;
+        assert(captureShape(g,rec,c.opts,false,&msg)==S_OK&&text(rec.text.v)==code);
+        assert(c.world.tagReads-before==801&&rec.codeColumns==200);
+        pass("200 reversed code/gutter pairs keep source order with one layout tag and two reads per textbox");
+    }
+    {
+        for(int fault=0;fault<7;++fault){
+            Case c(u"a\rb\rc\rd",fault!=6);c.opts.columnCount=2;c.opts.outputMode=1;assert(c.run()==S_OK);
+            Node*g=(Node*)c.out.content.p,*tags=g->members.back()->links.at(u"Tags");
+            if(fault==0)tags->props=g->members.front()->links.at(u"Tags")->props;
+            if(fault==1)tags->props.erase(u"CODEINK_COLUMN");
+            if(fault==2)tags->props[u"CODEINK_COLUMN"]=Value::text(L"3");
+            if(fault==3)tags->props[u"CODEINK_COLUMN"]=Value::text(L"1.5");
+            if(fault==4)tags->props[u"CODEINK_NUMBER"]=Value::text(L"2");
+            if(fault==5)g->members.pop_back();
+            if(fault==6)tags->props[u"CODEINK_NUMBER"]=Value::text(L"1");
+            Capture rec;const wchar_t*msg=nullptr;assert(failed(captureShape(g,rec,c.opts,false,&msg))&&msg);
+            for(Node*s:g->members)assert(!s->dead);
+        }
+        pass("duplicate, absent, out-of-range and malformed column roles fail before changing textboxes");
+    }
+    {
+        Case c(u"a\rb\rc\rd\re",true);c.opts.columnCount=2;assert(c.run()==S_OK);
+        c.cell(2,3)->code=u"added";c.cell(2,3)->ink.assign(5,0);
+        Capture rec;const wchar_t*msg=nullptr;assert(captureShape(c.out.content,rec,c.opts,false,&msg)==S_OK&&text(rec.text.v)==u"a\rb\rc\rd\re\radded");
+        pass("visible edits in a formerly padded cell are included on reread");
+    }
+    {
+        Case c(u"a\rb\rc\rd\re",false);c.opts.columnCount=2;c.opts.maxColumnRows=2;c.opts.columnOverflow=2;
+        wchar_t status[256],error[1600];Node*app=appFor(c,true);
+        assert(failed(executeAction(app,c.opts,Action::Table,status,256,error,1600,c.progress)));
+        assert(c.world.top().size()==1&&!c.original->dead&&u(error).find(u"至少 3 栏")!=U::npos);
+        c.opts.columnOverflow=0;assert(c.run()==S_OK&&c.table()->cols==3&&c.table()->rows==2);
+        pass("strict capacity rejects before creating objects; grow-columns mode respects the row cap");
+    }
     {
         Case c(u"/* a\r中😀\r*/\rint x;",false);c.item.tokens.make(2);c.item.tokens[0]={0,11,0x00AA00,0};c.item.tokens[1]={12,3,0xFF0000,0};
         assert(c.run()==S_OK);assert(c.cell(1,0)->code==u"中😀");for(auto color:c.cell(1,0)->ink)assert(color==(DWORD)rgb(0x00AA00));
@@ -224,23 +300,23 @@ int main(){
     }
     {
         Case c(u"a\r\rb",true);c.opts.outputMode=1;c.opts.windowFrame=true;assert(c.run()==S_OK);
-        Node*g=(Node*)c.out.content.p;assert(g->type==6&&g->members.size()==10&&!c.out.decoration);
+        Node*g=(Node*)c.out.content.p;assert(g->type==6&&g->members.size()==6&&!c.out.decoration);
         for(Node*s:g->members)assert(s->type!=19);
         Capture rec;const wchar_t*msg=nullptr;assert(captureShape(g,rec,c.opts,false,&msg)==S_OK);assert(rec.grouped&&rec.gutter&&rec.rows==3);assert(text(rec.text.v)==u"a\r\rb");
         Ref child;child.set(g->members.back());wholeGroup(child);assert(child.p==g);
         // Rebuilding from the ordinary group's visible text does not need object names.
         for(Node*s:g->members)s->name=u"renamed by user";
         assert(captureShape(g,rec,c.opts,false,&msg)==S_OK&&text(rec.text.v)==u"a\r\rb");
-        pass("editable row text boxes and frame truly group; child selection and stateless readback work");
+        pass("editable column text boxes and frame group; child selection and live-text readback work");
     }
     {
         Case c(u"a\rb",false);c.opts.outputMode=1;c.opts.windowFrame=false;c.opts.background=0;assert(c.run()==S_OK);
-        Node*g=(Node*)c.out.content.p;assert(g->type==6&&g->members.size()==2);for(Node*s:g->members)assert(s->type==17);
+        Node*g=(Node*)c.out.content.p;assert(g->type==17&&g->code==u"a\rb");
         pass("window off generates only editable code, no decorative background or buttons");
     }
     {
         Case c(u"a\rb",false);c.opts.outputMode=1;c.opts.windowFrame=true;c.opts.windowButtons=false;c.opts.windowShadow=false;c.opts.windowFill=1;c.opts.windowColor=0xF3F3F6;
-        assert(c.run()==S_OK);Node*g=(Node*)c.out.content.p;assert(g->members.size()==3);Node*panel=g->members[0];
+        assert(c.run()==S_OK);Node*g=(Node*)c.out.content.p;assert(g->members.size()==2);Node*panel=g->members[0];
         assert(panel->links.at(u"Shadow")->value(u"Visible")==0);assert((DWORD)panel->links.at(u"Fill")->links.at(u"ForeColor")->value(u"RGB")== (DWORD)rgb(0xF3F3F6));
         pass("buttons and shadow can be disabled; window color is independent");
     }
@@ -275,7 +351,7 @@ int main(){
         Capture source;const wchar_t*msg=nullptr;assert(captureShape(c.out.content,source,c.opts,false,&msg)==S_OK);
         c.opts.windowFrame=false;CreatedBlock rebuilt;
         assert(createBlock(c.shapes,source,c.item,c.colors,c.opts,rebuilt,c.progress)==S_OK);
-        Node*g=(Node*)rebuilt.content.p;assert(g->type==6&&g->members.size()==6);
+        Node*g=(Node*)rebuilt.content.p;assert(g->type==6&&g->members.size()==2);
         for(Node*part:g->members)assert(part->type==17);
         Capture again;assert(captureShape(g,again,c.opts,false,&msg)==S_OK&&text(again.text.v)==u"alpha\r\rbeta");
         pass("window can be removed by stateless rebuild while keeping editable code and blank rows");
@@ -446,6 +522,15 @@ int main(){
         Case c(u"s=\"a\tb\";");c.opts.basicCleanup=false;Node*app=appFor(c,true);wchar_t status[256],error[1600];
         assert(executeAction(app,c.opts,Action::Format,status,256,error,1600,c.progress)==S_OK&&c.original->code==u"s=\"a\tb\";");
         pass("disabling cleanup preserves literal tabs and source spacing");
+    }
+    for(Action action:{Action::Clipboard,Action::Table}){
+        U raw=u"\t中😀\r\ns=\"a\tb\";\n\v\u2028end\u2029";
+        Case c(raw,true);c.opts.basicCleanup=false;Node*app=appFor(c,true);clipboardText=raw;wchar_t status[256],error[1600];
+        assert(executeAction(app,c.opts,action,status,256,error,1600,c.progress)==S_OK);
+        Node*created=nullptr;for(Node*shape:c.world.top())if(shape->type==19)created=shape;assert(created);
+        Capture rec;const wchar_t*msg=nullptr;assert(captureShape(created,rec,c.opts,false,&msg)==S_OK);
+        assert(text(rec.text.v)==u"\t中😀\rs=\"a\tb\";\r\r\rend\r");
+        pass("generate/paste preserve source tabs and UTF-16 while normalizing every supported line break");
     }
     std::printf("%d renderer integration simulations passed. NOT a Windows/PowerPoint runtime test.\n",passed);
 }

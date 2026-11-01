@@ -2,8 +2,6 @@
 // Pure text/layout helpers. Syntax analysis is exclusively performed by Shiki.
 namespace codeink {
 using Ch=char16_t;
-int normalizedLength(const Ch* s,int n);
-int normalize(const Ch* s,int n,Ch* out,int capacity);
 int lineCount(const Ch* s,int n);
 int displayColumns(const Ch* s,int n);
 bool numberSequence(const Ch* text,int n,int& expected,int& count);
@@ -19,4 +17,12 @@ int lineNumberDigits(int first,int count);
 float narrowGutterWidth(int first,int count,float fontSize,float measuredTextWidth=-1);
 struct WindowGeometry { float width,height,contentX,contentY,headerHeight,dotSize; };
 WindowGeometry windowGeometry(float contentWidth,float contentHeight,float fontSize,float padding,bool buttons);
+struct ColumnLayout {
+    int columns,rows;
+    int count(int lines,int column)const;
+    int first(int lines,int column)const;
+};
+// Resolve independent preferences before writing any Office objects. Remainders
+// go to the leftmost columns; strict capacity conflicts return false.
+bool columnLayout(int lines,int requested,int maximumRows,int overflow,ColumnLayout& result);
 }

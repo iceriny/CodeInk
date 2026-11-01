@@ -8,6 +8,7 @@
 #include <vector>
 #include <map>
 #include "../src/addin.cpp"
+#include "../src/fonts.cpp"
 using U=std::u16string;
 static U u(const wchar_t*s){return s?U((const char16_t*)s,(const char16_t*)s+slen(s)):U();}
 static const wchar_t*w(const U&s){return (const wchar_t*)s.c_str();}
@@ -50,15 +51,47 @@ void Progress::text(const wchar_t*){}
 bool Progress::pump(){return true;}
 HRESULT invokeEngine(const Options&,const BSTR*,int,HighlightResult&,Progress*){return E_FAIL;}
 static int settingsOpened=0;static bool settingsAppearance=false;
-bool editSettings(HWND,HINSTANCE,Options& o,bool appearance){++settingsOpened;settingsAppearance=appearance;o.windowPadding=18;o.basicCleanup=false;return true;}
+bool editSettings(HWND,HINSTANCE,Options& o,bool appearance){++settingsOpened;settingsAppearance=appearance;if(appearance){o.windowPadding=22.5f;o.windowRadius=12;}else{o.tableRead=1;o.merge=true;if(o.columnCount&&o.maxColumnRows)o.columnOverflow=1;}return true;}
 static Action lastAction=Action::Plain;static int actions=0;
-HRESULT executeAction(IDispatch*,const Options&,Action action,wchar_t*status,int sc,wchar_t*,int,Progress&){lastAction=action;++actions;copystr(status,sc,L"Mock action completed");return S_OK;}
+static Options actionOptions;
+HRESULT executeAction(IDispatch*,const Options&o,Action action,wchar_t*status,int sc,wchar_t*,int,Progress&){actionOptions=o;lastAction=action;++actions;copystr(status,sc,L"Mock action completed");return S_OK;}
+static U defaultFace;static U*currentFace=&defaultFace;
+extern "C" HANDLE CreateCompatibleDC(HANDLE){return (HANDLE)1;}
+extern "C" BOOL DeleteDC(HANDLE){return TRUE;}
+extern "C" HANDLE CreateFontIndirectW(const LOGFONTW*f){return new U(u(f->lfFaceName));}
+extern "C" HANDLE SelectObject(HANDLE,HANDLE font){U*previous=currentFace;currentFace=(U*)font;return previous;}
+extern "C" BOOL DeleteObject(HANDLE font){delete (U*)font;return TRUE;}
+extern "C" int GetTextFaceW(HANDLE,int cap,LPWSTR face){const U&actual=*currentFace==u"Missing Mono"?U(u"Arial"):*currentFace;copystr(face,cap,w(actual));return actual.size();}
+extern "C" BOOL GetTextExtentPoint32W(HANDLE,LPCWSTR s,int count,SIZE*size){assert(count==1);bool mono=*currentFace==u"Consolas"||*currentFace==u"Fira Code"||*currentFace==u"Cascadia Code";size->cx=!mono&&*s=='W'?17:10;size->cy=32;return TRUE;}
+extern "C" DWORD GetTickCount(){return 1234;}
+static bool nativeControl=true,brokenFontList=false;static int temporaryDeleted=0;
+static std::vector<U> fontNames={u"Arial",u"Consolas",u"Fira Code",u"consolas",u"Pretend Mono",u"Missing Mono",u"@Vertical",u"Cascadia Code"};
+extern "C" int EnumFontFamiliesExW(HANDLE,LOGFONTW*,FONTENUMPROCW callback,LPARAM parameter,DWORD){
+    for(const auto&name:fontNames){LOGFONTW font={};copystr(font.lfFaceName,32,w(name));if(!callback(&font,nullptr,4,parameter))return 0;}return 1;
+}
+static std::vector<U> appMethods;
 struct App:IDispatch{
+    int kind;App(int k=0):kind(k){}
     HRESULT QueryInterface(REFIID,void**out)override{*out=this;return S_OK;}ULONG AddRef()override{return 1;}ULONG Release()override{return 1;}
     HRESULT GetTypeInfoCount(UINT*n)override{*n=0;return S_OK;}HRESULT GetTypeInfo(UINT,LCID,ITypeInfo**)override{return E_NOTIMPL;}
-    HRESULT GetIDsOfNames(REFIID,LPWSTR*,UINT,LCID,DISPID*)override{return E_FAIL;}
-    HRESULT Invoke(DISPID,REFIID,LCID,WORD,DISPPARAMS*,VARIANT*,EXCEPINFO*,UINT*)override{return E_FAIL;}
+    HRESULT GetIDsOfNames(REFIID,LPWSTR*names,UINT n,LCID,DISPID*ids)override{
+        for(UINT i=0;i<n;++i){appMethods.push_back(u(names[i]));ids[i]=appMethods.size();}return S_OK;
+    }
+    HRESULT Invoke(DISPID,REFIID,LCID,WORD,DISPPARAMS*,VARIANT*,EXCEPINFO*,UINT*)override;
 };
+static App bars(1),fontControl(2),temporaryBar(3),barControls(4);
+HRESULT App::Invoke(DISPID id,REFIID,LCID,WORD,DISPPARAMS*p,VARIANT*r,EXCEPINFO*,UINT*){
+    U method=appMethods[id-1];auto objectResult=[&](IDispatch*object){r->vt=VT_DISPATCH;r->pdispVal=object;return S_OK;};
+    if(kind==0&&method==u"CommandBars")return objectResult(&bars);
+    if(kind==1&&method==u"FindControl")return nativeControl?objectResult(&fontControl):E_FAIL;
+    if(kind==1&&method==u"Add")return objectResult(&temporaryBar);
+    if(kind==3&&method==u"Controls")return objectResult(&barControls);
+    if(kind==3&&method==u"Delete"){++temporaryDeleted;return S_OK;}
+    if(kind==4&&method==u"Add")return objectResult(&fontControl);
+    if(kind==2&&method==u"ListCount"){r->vt=VT_I4;r->lVal=fontNames.size();return S_OK;}
+    if(kind==2&&method==u"List"){int index=asLong(&p->rgvarg[0])-1;if(brokenFontList&&index==2)return E_FAIL;assert(index>=0&&index<(int)fontNames.size());r->vt=VT_BSTR;r->bstrVal=SysAllocString(w(fontNames[index]));return S_OK;}
+    return E_FAIL;
+}
 static DISPID method(Addin&a,const wchar_t*name){DISPID id;LPWSTR s=const_cast<LPWSTR>(name);assert(a.GetIDsOfNames(IID_Unknown,&s,1,0,&id)==S_OK);return id;}
 static Value get(Addin&a,const wchar_t*name){Value value;assert(a.Invoke(method(a,name),IID_Unknown,0,DISPATCH_METHOD,nullptr,&value.v,nullptr,nullptr)==S_OK);return value;}
 static void action(Addin&a,const wchar_t*name){assert(a.Invoke(method(a,name),IID_Unknown,0,DISPATCH_METHOD,nullptr,nullptr,nullptr,nullptr)==S_OK);}
@@ -68,6 +101,18 @@ static int passed=0;static void pass(const char*s){std::printf("PASS %02d: %s\n"
 int main(){
     regNumber(CONFIG_KEY,L"AutoFit",1);regNumber(CONFIG_KEY,L"AutoFitMin100",1200);regNumber(CONFIG_KEY,L"AutoFitMax100",1400);
     App app;Addin a;assert(a.OnConnection(&app,0,nullptr,nullptr)==S_OK);
+    assert(method(a,L"FontCount")==GFontCount&&method(a,L"LanguageCount")==GLanguageCount&&method(a,L"ThemeCount")==GThemeCount);
+    assert(get(a,L"LanguageCount").integerValue()==19&&get(a,L"ThemeCount").integerValue()==12);
+    change(a,L"OnLanguage",Value::text(L"CPP"));assert(u(get(a,L"GetLanguage").v.bstrVal)==u"cpp");
+    {
+        FontCatalog fonts;assert(fonts.load(&app)&&fonts.count()==3&&fonts.find(L"Fira Code")&&!fonts.find(L"Arial")&&!fonts.find(L"Pretend Mono")&&!fonts.find(L"Missing Mono"));
+        nativeControl=false;int before=temporaryDeleted;assert(fonts.load(&app)&&temporaryDeleted==before+1);
+        brokenFontList=true;assert(fonts.load(&app)&&fonts.count()==3&&!fonts.nativeSource()&&temporaryDeleted==before+2);brokenFontList=false;nativeControl=true;
+        Value count=get(a,L"FontCount");assert(count.integerValue()==3);
+        change(a,L"OnFontFamily",Value::text(L"Fira Code"));assert(u(get(a,L"GetFontFamily").v.bstrVal)==u"Fira Code");
+        change(a,L"OnFontFamily",Value::text(L"Arial"));assert(u(get(a,L"GetFontFamily").v.bstrVal)==u"Fira Code"&&lastMessage.find(u"等宽字体")!=U::npos);
+        pass("native Office font list filters real fixed advances, deduplicates, rejects substitution and always removes the temporary bar");
+    }
     assert(checked(a,L"GetBorderVertical")&&!checked(a,L"GetBorderHorizontal")&&!checked(a,L"GetBorderOuter")&&!checked(a,L"GetLogging"));
     assert(logWrites==0&&logOpens==0);pass("fresh install defaults: vertical-only borders and zero diagnostic log writes");
     {
@@ -76,17 +121,16 @@ int main(){
         assert(source.find(u"版本与诊断")==U::npos&&source.find(u"CodeInkWindowGeometry")==U::npos&&source.find(u"CodeInkWindowColors")==U::npos);
         pass("actual GetCustomUI supplies consolidated window toggle and the renamed About control");
     }
-    assert(!checked(a,L"GetWindowEnabled")&&checked(a,L"GetBackgroundEnabled"));
-    change(a,L"OnWindowFrame",Value::boolean(true));assert(checked(a,L"GetWindowEnabled")&&!checked(a,L"GetBackgroundEnabled"));
-    {Value v=get(a,L"GetWindowLabel");assert(u(v.v.bstrVal)==u"模拟窗口");}
-    change(a,L"OnWindowPadding",Value::text(L"22.5"));change(a,L"OnWindowRadius",Value::text(L"12"));
-    change(a,L"OnWindowFrame",Value::boolean(false));assert(!checked(a,L"GetWindowEnabled"));change(a,L"OnWindowFrame",Value::boolean(true));
-    {Value v=get(a,L"GetWindowPadding");assert(u(v.v.bstrVal)==u"22.5");}
-    pass("window dependent controls gate correctly; off/on retains padding and radius");
+    assert(!checked(a,L"GetWindowFrame")&&checked(a,L"GetBackgroundEnabled"));
+    change(a,L"OnWindowFrame",Value::boolean(true));assert(checked(a,L"GetWindowFrame")&&!checked(a,L"GetBackgroundEnabled"));
+    action(a,L"OnAppearanceSettings");assert(settingsOpened==1&&settingsAppearance);
+    change(a,L"OnWindowFrame",Value::boolean(false));assert(checked(a,L"GetBackgroundEnabled"));change(a,L"OnWindowFrame",Value::boolean(true));
+    assert(readNumber(CONFIG_KEY,L"WindowPadding100",0)==2250&&readNumber(CONFIG_KEY,L"WindowRadius100",0)==1200);
+    pass("window toggle gates the background; appearance settings save padding and radius across off/on");
     change(a,L"OnBorderHorizontal",Value::boolean(true));change(a,L"OnBorderVertical",Value::boolean(false));change(a,L"OnBorderOuter",Value::boolean(true));
-    change(a,L"OnOutputMode",Value::integer(1),true);assert(!checked(a,L"GetBorderEnabled"));
-    change(a,L"OnOutputMode",Value::integer(0),true);assert(checked(a,L"GetBorderEnabled"));assert(!checked(a,L"GetBorderVertical")&&checked(a,L"GetBorderHorizontal")&&checked(a,L"GetBorderOuter"));
-    pass("border toggles stay independent and survive disabling in text-box output mode");
+    change(a,L"OnOutputMode",Value::integer(1),true);assert(get(a,L"GetOutputMode").integerValue()==1);
+    change(a,L"OnOutputMode",Value::integer(0),true);assert(get(a,L"GetOutputMode").integerValue()==0);assert(!checked(a,L"GetBorderVertical")&&checked(a,L"GetBorderHorizontal")&&checked(a,L"GetBorderOuter"));
+    pass("border toggles stay independent and survive switching output modes");
     {
         int oldCalls=environmentCalls;logEvent(L"Test while off",E_FAIL);assert(logWrites==0&&logOpens==0&&environmentCalls==oldCalls);
         change(a,L"OnLogging",Value::boolean(true));assert(checked(a,L"GetLogging")&&diagnosticLogging()&&logWrites==1);
@@ -97,11 +141,12 @@ int main(){
     {
         Addin reloaded;assert(reloaded.OnConnection(&app,0,nullptr,nullptr)==S_OK);
         assert(!checked(reloaded,L"GetLogging")&&!checked(reloaded,L"GetBorderVertical")&&checked(reloaded,L"GetBorderHorizontal")&&checked(reloaded,L"GetWindowFrame"));
-        Value v=get(reloaded,L"GetWindowPadding");assert(u(v.v.bstrVal)==u"22.5");pass("preferences round-trip through the registry code after reconnecting");
+        action(reloaded,L"OnBorders");assert(actionOptions.windowPadding==22.5f&&actionOptions.windowRadius==12);
+        pass("preferences round-trip through the registry code after reconnecting");
     }
     action(a,L"OnAbout");assert(lastTitle==u"关于 CodeInk"&&lastMessage.find(u"作者：Iceriny")!=U::npos&&lastMessage.find(u"1.0.2")!=U::npos&&lastMessage.find(u"首次安装")==U::npos&&lastMessage.find(u"新增")==U::npos&&lastMessage.find(u"日志")==U::npos);
     pass("About shows product/version/author without setup notes or runtime diagnostics");
-    action(a,L"OnBorders");assert(actions==1&&lastAction==Action::Borders);pass("border-only Ribbon action dispatches the dedicated operation, not format/rebuild");
+    action(a,L"OnBorders");assert(actions==2&&lastAction==Action::Borders);pass("border-only Ribbon action dispatches the dedicated operation, not format/rebuild");
     action(a,L"OnOpenLog");assert(lastMessage.find(u"没有可打开")!=U::npos&&!diagnosticLogging());
     action(a,L"OnClearLog");assert(lastMessage.find(u"已清理")!=U::npos&&!diagnosticLogging());pass("open/clear log actions do not enable logging or write new log records");
     action(a,L"OnStatus");assert(lastTitle==u"运行状态 · CodeInk"&&lastMessage.find(u"Mock action completed")!=U::npos&&lastMessage.find(u"已关闭")!=U::npos&&lastMessage.find(u"完整列表暂不可用")!=U::npos);
@@ -113,17 +158,38 @@ int main(){
     assert(readNumber(CONFIG_KEY,L"BasicCleanup",9)==1);
     change(a,L"OnBasicCleanup",Value::boolean(false));assert(!checked(a,L"GetBasicCleanup")&&readNumber(CONFIG_KEY,L"BasicCleanup",9)==0);
     change(a,L"OnBasicCleanup",Value::boolean(true));assert(checked(a,L"GetBasicCleanup"));
+    change(a,L"OnIndentWidth",Value::text(L"2 空格"));assert(u(get(a,L"GetIndentWidth").v.bstrVal)==u"2 空格");
+    change(a,L"OnIndentWidth",Value::text(L"8"));assert(u(get(a,L"GetIndentWidth").v.bstrVal)==u"8 空格");
+    change(a,L"OnIndentWidth",Value::text(L"9"));assert(u(get(a,L"GetIndentWidth").v.bstrVal)==u"8 空格");
     change(a,L"OnReplace",Value::boolean(true));assert(checked(a,L"GetReplace"));
     pass("direct Ribbon cleanup/replacement toggles save and invalidate without opening settings");
-    action(a,L"OnAppearanceSettings");assert(settingsOpened==1&&settingsAppearance);
     action(a,L"OnLayoutSettings");assert(settingsOpened==2&&!settingsAppearance);
-    {Value v=get(a,L"GetWindowPadding");assert(u(v.v.bstrVal)==u"18");}
+    assert(readNumber(CONFIG_KEY,L"TableRead",0)==1&&readNumber(CONFIG_KEY,L"Merge",0)==1);
+    change(a,L"OnBasicCleanup",Value::boolean(false));
     assert(checked(a,L"GetEnabled"));pass("settings commands commit preferences and restore Ribbon availability");
+    {
+        assert(u(get(a,L"GetColumnCount").v.bstrVal)==u"0"&&u(get(a,L"GetMaxColumnRows").v.bstrVal)==u"0");
+        for(int limit:{0,1,10,200}){wchar_t label[16];number(label,limit);
+            change(a,L"OnColumnCount",Value::text(label));change(a,L"OnMaxColumnRows",Value::text(label));
+            assert(u(get(a,L"GetColumnCount").v.bstrVal)==u(label)&&u(get(a,L"GetMaxColumnRows").v.bstrVal)==u(label));
+        }
+        for(const wchar_t* invalid:{L"-1",L"201",L"999",L"1.5",L"abc",L"",L"2000",L" 2"}){
+            change(a,L"OnColumnCount",Value::text(invalid));change(a,L"OnMaxColumnRows",Value::text(invalid));
+            assert(u(get(a,L"GetColumnCount").v.bstrVal)==u"200"&&u(get(a,L"GetMaxColumnRows").v.bstrVal)==u"200");
+        }
+        change(a,L"OnColumnCount",Value::text(L"0"));change(a,L"OnMaxColumnRows",Value::text(L"0"));
+        assert(u(get(a,L"GetColumnCount").v.bstrVal)==u"0"&&u(get(a,L"GetMaxColumnRows").v.bstrVal)==u"0");
+        change(a,L"OnColumnCount",Value::text(L"3"));change(a,L"OnMaxColumnRows",Value::text(L"20"));assert(settingsOpened==2);
+        action(a,L"OnLayoutSettings");assert(settingsOpened==3&&readNumber(CONFIG_KEY,L"ColumnCount",0)==3&&readNumber(CONFIG_KEY,L"MaxColumnRows",0)==20&&readNumber(CONFIG_KEY,L"ColumnOverflow",0)==1);
+        pass("numeric column/row fields accept 0-200, restore automatic with zero and reject invalid input without dialogs; generation settings retain overflow policy");
+    }
     Addin reconnected;assert(reconnected.OnConnection(&app,0,nullptr,nullptr)==S_OK);
     change(reconnected,L"OnFontSize",Value::text(L"60"));
     {Value v=get(reconnected,L"GetFontSize");assert(u(v.v.bstrVal)==u"60");}
     assert(readNumber(CONFIG_KEY,L"FontSize100",0)==6000);
     assert(readNumber(CONFIG_KEY,L"BasicCleanup",9)==0);
+    action(reconnected,L"OnBorders");assert(actionOptions.tableRead==1&&actionOptions.merge&&actionOptions.windowPadding==22.5f&&actionOptions.columnCount==3&&actionOptions.maxColumnRows==20&&actionOptions.columnOverflow==1);
+    assert(u(get(reconnected,L"GetFontFamily").v.bstrVal)==u"Fira Code");
     pass("explicit font size persists after reconnect despite legacy automatic-size preferences");
     std::printf("%d Ribbon/preference/logging simulations passed. NOT a Windows/PowerPoint UI test.\n",passed);
 }

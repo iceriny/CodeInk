@@ -5,27 +5,23 @@ Run `python build.py` on Linux/macOS/Windows with clang++, lld-link and Python 3
 from pathlib import Path
 import subprocess, shutil, json, hashlib, sys, re
 from dev import configure_tools
-configure_tools()
 ROOT=Path(__file__).resolve().parent
 VERSION=(ROOT/'VERSION').read_text(encoding='utf-8').strip()
 SRC=ROOT/'src'; BUILD=ROOT/'build'; DIST=ROOT/'dist'
-BUILD.mkdir(exist_ok=True); DIST.mkdir(exist_ok=True)
-CLANG=shutil.which('clang++'); LLD=shutil.which('lld-link')
 COMPILE_COMMANDS=[]
-if not CLANG or not LLD: raise SystemExit('Install LLVM clang++ and lld-link, and add them to PATH.')
 def run(args):
     print(' '.join(map(str,args)),flush=True)
     subprocess.run(list(map(str,args)),check=True,cwd=ROOT)
 def ribbon():
+    BUILD.mkdir(exist_ok=True)
     text=(SRC/'ribbon.xml').read_text(encoding='utf-8')
     escaped=text.replace('\\','\\\\').replace('"','\\"').replace('\n','\\n"\nL"')
     (BUILD/'ribbon.generated.h').write_text('static const wchar_t* const RIBBON_XML = L"'+escaped+'";\n',encoding='utf-8')
 def libraries(arch):
     apis=re.findall(r'^API\([^,]+,([A-Za-z0-9_]+),', (SRC/'winapi.h').read_text(encoding='utf-8'),re.M)
     groups={'USER32':['MessageBoxW','GetForegroundWindow','RegisterClassW','UnregisterClassW','CreateWindowExW','DefWindowProcW','DestroyWindow','ShowWindow','UpdateWindow','EnableWindow','SetWindowTextW','PeekMessageW','TranslateMessage','DispatchMessageW','SendMessageW','OpenClipboard','GetClipboardData','CloseClipboard'],
-            'GDI32':['GetStockObject'],
+            'GDI32':['GetStockObject','CreateCompatibleDC','DeleteDC','CreateFontIndirectW','SelectObject','DeleteObject','GetTextFaceW','GetTextExtentPoint32W','EnumFontFamiliesExW'],
             'COMDLG32':['GetOpenFileNameW'],
-            'URLMON':['URLDownloadToFileW'],
             'ADVAPI32':[x for x in apis if x.startswith('Reg')],
             'OLEAUT32':['SysAllocString','SysAllocStringLen','SysStringLen','SysFreeString','VariantClear','VariantCopy','SafeArrayCreateVector','SafeArrayPutElement'],
             'OLE32':['CoCreateInstance','CoInitializeEx','CoUninitialize'],
@@ -62,10 +58,15 @@ def link(output,objects,libs,arch,dll=False):
     if not dll: flags+=['/manifest:embed',"/manifestuac:level='asInvoker' uiAccess='false'"]
     run([LLD,*flags,'/out:'+str(output),*objects,*libs])
 def main():
+    global CLANG, LLD
+    configure_tools()
+    CLANG=shutil.which('clang++'); LLD=shutil.which('lld-link')
+    if not CLANG or not LLD: raise SystemExit('Install LLVM clang++ and lld-link, and add them to PATH.')
+    DIST.mkdir(exist_ok=True)
     ribbon()
     for arch in ['x86','x64']:
         libs=libraries(arch)
-        objects=[compile_file(f,arch) for f in ['common.cpp','textutil.cpp','basicformat.cpp','com.cpp','progress.cpp','engine.cpp','catalog.cpp','render.cpp','settings.cpp','addin.cpp']]
+        objects=[compile_file(f,arch) for f in ['common.cpp','textutil.cpp','basicformat.cpp','com.cpp','progress.cpp','engine.cpp','catalog.cpp','fonts.cpp','render.cpp','settings.cpp','addin.cpp']]
         link(DIST/('CodeInk.'+arch+'.dll'),objects,libs,arch,True)
         if (SRC/'check.cpp').exists():
             chk=[BUILD/('common-'+arch+'.obj'),BUILD/('progress-'+arch+'.obj'),BUILD/('engine-'+arch+'.obj'),compile_file('check.cpp',arch)]

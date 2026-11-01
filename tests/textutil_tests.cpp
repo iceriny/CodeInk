@@ -4,15 +4,7 @@
 #include <iostream>
 #include <string>
 using namespace codeink;
-static std::u16string norm(const std::u16string&s){int len=normalizedLength(s.data(),s.size());std::u16string out(len+1,u'\0');int wrote=normalize(s.data(),s.size(),out.data(),out.size());assert(wrote==len);out.resize(len);return out;}
 int main(){
-    assert(norm(u"a\tb")==u"a    b"); // four literal spaces, not a tab stop
-    assert(norm(u"\t\tx")==u"        x");
-    assert(norm(u"a\r\nb\nc\vd\r")==u"a\rb\rc\rd\r");
-    assert(norm(u"// 中文😀\t注释")==u"// 中文😀    注释");
-    assert(norm(u"")==u"");
-    const std::u16string escaped=u"const char* s=\"\\t\\n\";";assert(norm(escaped)==escaped);
-    char16_t small[2];assert(normalize(u"\t",1,small,2)==-1);assert(normalizedLength(nullptr,2)==-1);
     assert(lineCount(u"a\r\nb",4)==2);assert(lineCount(u"a\rb\rc",5)==3);assert(lineCount(u"",0)==1);
     assert(lineCount(u"\r\n",2)==2);assert(lineCount(u"x\v",2)==2);
     assert(displayColumns(u"// 中文😀",7)==9);assert(displayColumns(u"a\tb",3)==6);
@@ -37,7 +29,7 @@ int main(){
     assert(spans[3].start==8&&spans[3].length==0);
     assert(splitLines(u"",0,spans,10)==1&&spans[0].length==0);
     assert(splitLines(u"a\nb",3,spans,1)==-1);
-    assert(norm(u"a\u2028b\u2029")==u"a\rb\r");
+    assert(lineCount(u"a\u2028b\u2029",4)==3);
     assert(lineNumberDigits(1,9)==1&&lineNumberDigits(1,10)==2);
     assert(lineNumberDigits(98,2)==2&&lineNumberDigits(98,3)==3);
     assert(lineNumberDigits(998,3)==4&&lineNumberDigits(1000,1)==4);
@@ -50,11 +42,20 @@ int main(){
     assert(window.dotSize==9);
     auto bare=windowGeometry(200,100,18,0,false);
     assert(bare.width==200&&bare.height==100&&bare.contentY==0&&bare.headerHeight==0);
-    // Deterministic mixed Unicode/newline/tab cases, using an independent string oracle.
-    std::u16string symbols[]={u"中",u"😀",u"\t",u"x",u"\r\n",u"\v",u"\n"};
-    for(int a=0;a<7;++a)for(int b=0;b<7;++b){auto src=symbols[a]+u"Q"+symbols[b];std::u16string expectedText;
-        for(size_t i=0;i<src.size();++i){char16_t c=src[i];if(c=='\t')expectedText+=u"    ";else if(c=='\r'){expectedText+=u'\r';if(i+1<src.size()&&src[i+1]=='\n')++i;}else if(c=='\n'||c=='\v')expectedText+=u'\r';else expectedText+=c;}
-        assert(norm(src)==expectedText);
+    ColumnLayout layout;
+    assert(columnLayout(7,2,0,0,layout)&&layout.columns==2&&layout.rows==4);
+    assert(layout.count(7,0)==4&&layout.count(7,1)==3&&layout.first(7,1)==4);
+    assert(columnLayout(8,3,0,0,layout)&&layout.count(8,0)==3&&layout.count(8,1)==3&&layout.count(8,2)==2);
+    assert(columnLayout(45,0,20,0,layout)&&layout.columns==3&&layout.rows==15);
+    assert(columnLayout(80,3,20,0,layout)&&layout.columns==4&&layout.rows==20);
+    assert(columnLayout(80,3,20,1,layout)&&layout.columns==3&&layout.rows==27);
+    assert(!columnLayout(80,3,20,2,layout)&&layout.columns==3&&layout.rows==27);
+    assert(columnLayout(1,5,0,0,layout)&&layout.columns==1);
+    assert(columnLayout(200,0,1,0,layout)&&layout.columns==200);
+    for(int lines=1;lines<=200;++lines)for(int columns=1;columns<=lines;++columns){
+        assert(columnLayout(lines,columns,0,0,layout));int next=0,previous=201;
+        for(int c=0;c<columns;++c){assert(layout.first(lines,c)==next);int n=layout.count(lines,c);assert(n>0&&n<=previous&&(!c||previous-n<=1));previous=n;next+=n;}
+        assert(next==lines);
     }
-    std::cout<<"PASS: UTF-16 normalization, four-space tabs, line count/width, number-column detection, decimal settings, line spans, dynamic gutters, window geometry; 49 mixed-text cases.\n";
+    std::cout<<"PASS: UTF-16 line count/width, number-column detection, decimal settings, line spans, dynamic gutters, window geometry and balanced column layouts.\n";
 }

@@ -1,8 +1,6 @@
 #include "textutil.h"
 namespace codeink {
 static bool newline(Ch c){return c=='\r'||c=='\n'||c=='\v'||c==0x2028||c==0x2029;}
-int normalizedLength(const Ch*s,int n){if(!s||n<0)return -1;int result=0;for(int i=0;i<n;++i){if(s[i]=='\r'&&i+1<n&&s[i+1]=='\n')++i;result+=s[i]=='\t'?4:1;}return result;}
-int normalize(const Ch*s,int n,Ch*out,int cap){int needed=normalizedLength(s,n);if(needed<0||!out||cap<needed+1)return -1;int k=0;for(int i=0;i<n;++i){if(newline(s[i])){if(s[i]=='\r'&&i+1<n&&s[i+1]=='\n')++i;out[k++]='\r';}else if(s[i]=='\t'){for(int j=0;j<4;++j)out[k++]=' ';}else out[k++]=s[i];}out[k]=0;return k;}
 int lineCount(const Ch*s,int n){int result=1;for(int i=0;i<n;++i)if(newline(s[i])){++result;if(s[i]=='\r'&&i+1<n&&s[i+1]=='\n')++i;}return result;}
 int displayColumns(const Ch*s,int n){int max=0,col=0;for(int i=0;i<n;++i){if(newline(s[i])){if(col>max)max=col;col=0;}else if(s[i]=='\t')col+=4;else if(s[i]>=0xDC00&&s[i]<=0xDFFF&&i&&s[i-1]>=0xD800&&s[i-1]<=0xDBFF){}else col+=s[i]>=0x2E80?2:1;}return col>max?col:max;}
 bool numberSequence(const Ch*s,int n,int& expected,int& count){
@@ -47,5 +45,17 @@ WindowGeometry windowGeometry(float w,float h,float fs,float pad,bool buttons){
     float header=buttons?(fs*1.65f>24?fs*1.65f:24):0;
     float dot=fs*0.5f;if(dot<6)dot=6;if(dot>12)dot=12;
     return {w+pad*2,h+pad*2+header,pad,pad+header,header,dot};
+}
+int ColumnLayout::count(int lines,int column)const{return lines/columns+(column<lines%columns?1:0);}
+int ColumnLayout::first(int lines,int column)const{return lines/columns*column+(column<lines%columns?column:lines%columns);}
+bool columnLayout(int lines,int requested,int maximumRows,int overflow,ColumnLayout& out){
+    out={1,lines};if(lines<1||lines>200||requested<0||requested>200||maximumRows<0||maximumRows>200||overflow<0||overflow>2)return false;
+    int needed=maximumRows?(lines+maximumRows-1)/maximumRows:1;
+    int columns=requested?requested:needed;if(columns>lines)columns=lines;
+    if(requested&&maximumRows&&needed>columns){
+        if(overflow==0)columns=needed;
+        else if(overflow==2){out={columns,(lines+columns-1)/columns};return false;}
+    }
+    out={columns,(lines+columns-1)/columns};return true;
 }
 }

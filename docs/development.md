@@ -35,7 +35,7 @@ python -X utf8 dev.py verify
 
 `deps` 使用 `npm ci --ignore-scripts` 按锁文件安装依赖。只有有意更新依赖时才修改 `engine/package.json` 并用 `npm install --prefix engine --ignore-scripts` 更新锁文件。
 
-`test` 执行全部引擎语法检查、JavaScript 单测及真实桥接错误路径测试；`self-test` 运行真实 Shiki、JSONC 主题继承和多语言高亮，需要先安装依赖。自检生成的语言/主题目录文件不提交、不嵌入安装包。
+`test` 执行构建模块导入/Ribbon 生成检查、全部引擎语法检查、JavaScript 单测及真实桥接错误路径测试；`self-test` 运行真实 Shiki、JSONC 主题继承和多语言高亮，需要先安装依赖。自检生成的语言/主题目录文件不提交、不嵌入安装包。
 
 `build` 生成 x86/x64 插件、检查器与安装器；`dll` 仅构建插件和检查器。直接执行 `python -X utf8 build.py` 仍然可用。包检查前必须完整构建，不能只构建 DLL；检查结果写入 `build/reports/pe-validation.json`，不覆盖历史报告。
 
@@ -50,9 +50,11 @@ python -X utf8 dev.py verify
 
 本工作区没有 PowerPoint 原生调试配置：当前 DLL 是优化发布构建，不生成 PDB。现有 F5 配置用于引擎和构建脚本。安装、COM 加载、Ribbon 及真实排版验收见 `tests/windows-smoke-test.md`，自动化构建通过不代表 Office 实测通过。
 
+`tests/windows_font_check.cpp` 使用真实 PowerPoint 字体入口和 Windows 字体度量检查等宽字体来源，不修改课件或偏好。`tests/windows_render_check.cpp` 在一个新建的隐藏临时课件内检查两种输出、行号/窗口开关共 8 种组合，完成后关闭该临时课件；现有课件和选择不被写入。这两项使用真实 COM，但不替代 Ribbon 加载、视觉排版、显示缩放和保存重开的人工验收。
+
 ## Linux / WSL 原生模拟测试
 
-现有 COM 模拟器采用 Linux 宿主 ABI 与 ELF 链接参数，需要 Linux（或 WSL）内的 Python、Node、clang++ 与 lld-link。Windows 上不把这些测试计为通过。
+现有 COM 模拟器采用 Linux 宿主 ABI 与 ELF 链接参数，需要 Linux（或 WSL）内的 Python、Node 与 clang++，不需要 Windows 链接器 lld-link。Windows 上不把这些测试计为通过。
 
 ```sh
 python3 -X utf8 dev.py mock

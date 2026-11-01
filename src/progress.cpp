@@ -26,10 +26,10 @@ bool Progress::pump(){
     }
     return !stopped;
 }
-bool runChild(const wchar_t*exe,wchar_t*cmd,DWORD timeout,Progress*p,DWORD& code,bool hidden){
+bool runChild(const wchar_t*exe,wchar_t*cmd,DWORD timeout,Progress*p,DWORD& code){
     STARTUPINFOW si={};si.cb=sizeof(si);PROCESS_INFORMATION pi={};code=0xFFFFFFFF;
     // Explicit executable: never use shell lookup and never interpolate source code.
-    if(!CreateProcessW(exe,cmd,nullptr,nullptr,FALSE,hidden?0x08000000:0,nullptr,nullptr,&si,&pi)){code=GetLastError();return false;}
+    if(!CreateProcessW(exe,cmd,nullptr,nullptr,FALSE,0x08000000,nullptr,nullptr,&si,&pi)){code=GetLastError();return false;}
     CloseHandle(pi.hThread);DWORD start=GetTickCount();bool ok=true;
     for(;;){DWORD wait=WaitForSingleObject(pi.hProcess,60);if(wait==0)break;
         if(wait==0xFFFFFFFF||GetTickCount()-start>timeout||(p&&!p->pump())){TerminateProcess(pi.hProcess,0x80004004);WaitForSingleObject(pi.hProcess,5000);ok=false;break;}}

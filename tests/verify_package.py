@@ -73,14 +73,14 @@ for element in root.iter():
         if key in ('onAction','onChange','onLoad') or key.startswith('get'):
             callbacks.add(value);assert 'L"'+value+'"' in source,f'Missing COM callback {value}'
 assert len(ids)==len(set(ids))
-enum = re.search(r'enum Callback \{(.*?)\};',source,re.S).group(1)
-enum = [x.strip().split('=')[0] for x in enum.split(',') if x.strip()]
-methods = re.findall(r'L"([^"]+)"', re.search(r'METHODS\[\]=\{(.*?)\};',source,re.S).group(1))
-assert len(enum)==len(methods)
-exceptions={'CConnect':'OnConnection','CDisconnect':'OnDisconnection','CAddins':'OnAddInsUpdate','CStartup':'OnStartupComplete','CShutdown':'OnBeginShutdown','CCustomUI':'GetCustomUI','GLanguageCount':'LanguageCount','GLanguageLabel':'LanguageLabel','GThemeCount':'ThemeCount','GThemeLabel':'ThemeLabel'}
-for key,method in zip(enum,methods):
-    expected=exceptions.get(key,('On' if key.startswith('C') else 'Get')+key[1:])
-    assert method==expected,f'Callback enum and DISPID list mismatch: {key} -> {method}'
+# The C++ enum and name array expand the same explicit bindings, so their DISPIDs
+# cannot drift when a callback is added or removed. Do not infer names from IDs.
+registry=re.search(r'#define CODEINK_CALLBACKS\(X\) \\\n(.*?)\n\n',source,re.S).group(1)
+bindings=re.findall(r'X\((\w+),L"([^"]+)"\)',registry)
+keys,methods=zip(*bindings)
+assert len(keys)==len(set(keys)) and len(methods)==len(set(methods))
+host={'OnConnection','OnDisconnection','OnAddInsUpdate','OnStartupComplete','OnBeginShutdown','GetCustomUI'}
+assert set(methods)==callbacks|host,'Registered callbacks must match current Ribbon and host entrypoints'
 
 # Release-specific layout and logging wiring checks, separate from UI rendering.
 ns={'r':'http://schemas.microsoft.com/office/2006/01/customui'}
@@ -94,8 +94,20 @@ assert controls['CodeInkAppearanceSettings'].get('onAction')=='OnAppearanceSetti
 assert controls['CodeInkLayoutSettings'].get('onAction')=='OnLayoutSettings'
 assert controls['CodeInkFirstLine'].get('getEnabled')=='GetNumbersEnabled'
 assert controls['CodeInkBasicCleanup'].get('getPressed')=='GetBasicCleanup'
+assert controls['CodeInkBasicCleanup'].get('label')=='格式化'
+assert [e.get('id') for e in controls['CodeInkApply']]==['CodeInkFormat','CodeInkTable','CodeInkClipboard','CodeInkBasicCleanup','CodeInkMore']
 assert controls['CodeInkReplace'].get('getPressed')=='GetReplace'
 assert controls['CodeInkClipboard'].get('size')=='large'
+syntax=controls['CodeInkSyntax']
+assert [e.get('id') for e in syntax]==['CodeInkLanguage','CodeInkTheme','CodeInkIndentWidth']
+assert all(e.tag.endswith('}comboBox') for e in syntax)
+assert controls['CodeInkIndentWidth'].tag.endswith('}comboBox')
+output=controls['CodeInkNumbers']
+assert [e.get('id') for e in output]==['CodeInkOutputMode','CodeInkLineNumbers','CodeInkFirstLine','CodeInkReplace','CodeInkColumnCount','CodeInkMaxColumnRows','CodeInkBordersMenu','CodeInkApplyBorders','CodeInkLayoutSettings']
+for control,callback in [('CodeInkColumnCount','GetColumnCount'),('CodeInkMaxColumnRows','GetMaxColumnRows')]:
+    assert controls[control].tag.endswith('}editBox') and controls[control].get('maxLength')=='3'
+    assert controls[control].get('getText')==callback
+assert controls['CodeInkApplyBorders'].get('label')=='应用边框'
 assert controls['CodeInkHelpMenu'].find('r:menu[@id="CodeInkDiagnostics"]',ns) is not None
 for key,label in [('Vertical','行号分隔线'),('Horizontal','行间横线'),('Outer','表格外框')]:
     assert controls['CodeInkBorder'+key].get('label')==label

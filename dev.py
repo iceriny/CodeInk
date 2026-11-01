@@ -52,6 +52,7 @@ def main():
         tool("lld-link")
         run(sys.executable, "-X", "utf8", "build.py", *(["--dll-only"] if args.command == "dll" else []))
     elif args.command == "test":
+        run(sys.executable, "-X", "utf8", "tests/build_tests.py")
         for path in sorted((ROOT / "engine").glob("*.mjs")):
             run(tool("node"), "--check", path)
         run(tool("node"), "--test", "tests/engine_tests.mjs")
@@ -63,7 +64,7 @@ def main():
         run(sys.executable, "-X", "utf8", "tests/verify_package.py")
     else:
         if not sys.platform.startswith("linux"):
-            raise SystemExit("Native host mocks require Linux (or WSL) with clang++ and lld-link. See docs/development.md.")
+            raise SystemExit("Native host mocks require Linux (or WSL) with clang++. See docs/development.md.")
         build = ROOT / "build"
         build.mkdir(exist_ok=True)
         run(tool("clang++"), "-std=c++17", "-O1", "-g", "-Isrc", "tests/textutil_tests.cpp", "src/textutil.cpp", "-o", build / "textutil_tests")

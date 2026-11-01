@@ -1,6 +1,7 @@
 #include "render.h"
 #include "catalog.h"
 #include "settings.h"
+#include "fonts.h"
 #include "ribbon.generated.h"
 static HMODULE gModule=nullptr;static volatile LONG gObjects=0,gLocks=0;
 static void show(HWND owner,const wchar_t*text,UINT type=MB_OK|MB_ICONINFORMATION){MessageBoxW(owner,text,L"CodeInk · 代码高亮",type);}
@@ -8,24 +9,40 @@ static int bound(int n,int lo,int hi){return n<lo?lo:n>hi?hi:n;}
 static void decimalText(wchar_t*out,float numberValue,const wchar_t*suffix=L""){
     int scaled=(int)(numberValue*100+0.5f);number(out,scaled/100);int tail=scaled%100;if(tail){wchar_t d[4]={'.',(wchar_t)('0'+tail/10),(wchar_t)('0'+tail%10),0};if(tail%10==0)d[2]=0;catstr(out,64,d);}catstr(out,64,suffix);
 }
-enum Callback {
-    CConnect=1,CDisconnect,CAddins,CStartup,CShutdown,CCustomUI,CRibbonLoad,
-    CHighlight,CFormat,CTable,CPlain,CClipboard,CBorders,
-    CLanguage,CTheme,CFontFamily,CFontSize,CSpacing,CBackground,CBackgroundColor,CNumbers,CFirstLine,CTableRead,CMerge,CReplace,CThemeStyles,COutputMode,CWindowFrame,CWindowButtons,CWindowShadow,CWindowPadding,CWindowRadius,CWindowFill,CWindowColor,CBorderVertical,CBorderHorizontal,CBorderOuter,CLogging,
-    GLanguage,GTheme,GFontFamily,GFontSize,GSpacing,GBackground,GBackgroundColor,GNumbers,GFirstLine,GTableRead,GMerge,GReplace,GThemeStyles,GOutputMode,GWindowFrame,GWindowButtons,GWindowShadow,GWindowPadding,GWindowRadius,GWindowFill,GWindowColor,GBorderVertical,GBorderHorizontal,GBorderOuter,GLogging,
-    GWindowEnabled,GBackgroundEnabled,GBorderEnabled,GWindowLabel,
-    GLanguageCount,GLanguageLabel,GThemeCount,GThemeLabel,GEnabled,GStatus,CImportTheme,CHelp,CAbout,CStatus,COpenLog,CClearLog,CAppearanceSettings,CLayoutSettings,GNumbersEnabled,CBasicCleanup,GBasicCleanup,CIndentWidth,GIndentWidth,GIndentEnabled
+// Keep dispatch identifiers and Ribbon names in the same order by construction.
+#define CODEINK_CALLBACKS(X) \
+    X(CConnect,L"OnConnection") X(CDisconnect,L"OnDisconnection") X(CAddins,L"OnAddInsUpdate") \
+    X(CStartup,L"OnStartupComplete") X(CShutdown,L"OnBeginShutdown") X(CCustomUI,L"GetCustomUI") X(CRibbonLoad,L"OnRibbonLoad") \
+    X(CHighlight,L"OnHighlight") X(CFormat,L"OnFormat") X(CTable,L"OnTable") X(CPlain,L"OnPlain") X(CClipboard,L"OnClipboard") X(CBorders,L"OnBorders") \
+    X(CLanguage,L"OnLanguage") X(CTheme,L"OnTheme") X(CFontFamily,L"OnFontFamily") X(CFontSize,L"OnFontSize") X(CSpacing,L"OnSpacing") \
+    X(CBackground,L"OnBackground") X(CNumbers,L"OnNumbers") X(CFirstLine,L"OnFirstLine") X(CReplace,L"OnReplace") \
+    X(COutputMode,L"OnOutputMode") X(CWindowFrame,L"OnWindowFrame") X(CBorderVertical,L"OnBorderVertical") \
+    X(CBorderHorizontal,L"OnBorderHorizontal") X(CBorderOuter,L"OnBorderOuter") X(CLogging,L"OnLogging") \
+    X(CColumnCount,L"OnColumnCount") X(CMaxColumnRows,L"OnMaxColumnRows") \
+    X(GLanguage,L"GetLanguage") X(GTheme,L"GetTheme") X(GFontFamily,L"GetFontFamily") X(GFontSize,L"GetFontSize") X(GSpacing,L"GetSpacing") \
+    X(GBackground,L"GetBackground") X(GNumbers,L"GetNumbers") X(GFirstLine,L"GetFirstLine") X(GReplace,L"GetReplace") \
+    X(GOutputMode,L"GetOutputMode") X(GWindowFrame,L"GetWindowFrame") X(GBorderVertical,L"GetBorderVertical") \
+    X(GBorderHorizontal,L"GetBorderHorizontal") X(GBorderOuter,L"GetBorderOuter") X(GLogging,L"GetLogging") X(GBackgroundEnabled,L"GetBackgroundEnabled") \
+    X(GLanguageCount,L"LanguageCount") X(GLanguageLabel,L"LanguageLabel") X(GThemeCount,L"ThemeCount") X(GThemeLabel,L"ThemeLabel") X(GEnabled,L"GetEnabled") \
+    X(CImportTheme,L"OnImportTheme") X(CHelp,L"OnHelp") X(CAbout,L"OnAbout") X(CStatus,L"OnStatus") X(COpenLog,L"OnOpenLog") X(CClearLog,L"OnClearLog") \
+    X(CAppearanceSettings,L"OnAppearanceSettings") X(CLayoutSettings,L"OnLayoutSettings") X(GNumbersEnabled,L"GetNumbersEnabled") \
+    X(CBasicCleanup,L"OnBasicCleanup") X(GBasicCleanup,L"GetBasicCleanup") X(CIndentWidth,L"OnIndentWidth") X(GIndentWidth,L"GetIndentWidth") \
+    X(GIndentEnabled,L"GetIndentEnabled") X(GFontCount,L"FontCount") X(GFontLabel,L"FontLabel") \
+    X(GColumnCount,L"GetColumnCount") X(GMaxColumnRows,L"GetMaxColumnRows")
+
+enum Callback { CallbackNone=0,
+#define CALLBACK_ID(id,name) id,
+    CODEINK_CALLBACKS(CALLBACK_ID)
+#undef CALLBACK_ID
 };
 static const wchar_t*METHODS[]={
-    L"OnConnection",L"OnDisconnection",L"OnAddInsUpdate",L"OnStartupComplete",L"OnBeginShutdown",L"GetCustomUI",L"OnRibbonLoad",
-    L"OnHighlight",L"OnFormat",L"OnTable",L"OnPlain",L"OnClipboard",L"OnBorders",
-    L"OnLanguage",L"OnTheme",L"OnFontFamily",L"OnFontSize",L"OnSpacing",L"OnBackground",L"OnBackgroundColor",L"OnNumbers",L"OnFirstLine",L"OnTableRead",L"OnMerge",L"OnReplace",L"OnThemeStyles",L"OnOutputMode",L"OnWindowFrame",L"OnWindowButtons",L"OnWindowShadow",L"OnWindowPadding",L"OnWindowRadius",L"OnWindowFill",L"OnWindowColor",L"OnBorderVertical",L"OnBorderHorizontal",L"OnBorderOuter",L"OnLogging",
-    L"GetLanguage",L"GetTheme",L"GetFontFamily",L"GetFontSize",L"GetSpacing",L"GetBackground",L"GetBackgroundColor",L"GetNumbers",L"GetFirstLine",L"GetTableRead",L"GetMerge",L"GetReplace",L"GetThemeStyles",L"GetOutputMode",L"GetWindowFrame",L"GetWindowButtons",L"GetWindowShadow",L"GetWindowPadding",L"GetWindowRadius",L"GetWindowFill",L"GetWindowColor",L"GetBorderVertical",L"GetBorderHorizontal",L"GetBorderOuter",L"GetLogging",
-    L"GetWindowEnabled",L"GetBackgroundEnabled",L"GetBorderEnabled",L"GetWindowLabel",
-    L"LanguageCount",L"LanguageLabel",L"ThemeCount",L"ThemeLabel",L"GetEnabled",L"GetStatus",L"OnImportTheme",L"OnHelp",L"OnAbout",L"OnStatus",L"OnOpenLog",L"OnClearLog",L"OnAppearanceSettings",L"OnLayoutSettings",L"GetNumbersEnabled",L"OnBasicCleanup",L"GetBasicCleanup",L"OnIndentWidth",L"GetIndentWidth",L"GetIndentEnabled"
+#define CALLBACK_NAME(id,name) name,
+    CODEINK_CALLBACKS(CALLBACK_NAME)
+#undef CALLBACK_NAME
 };
+#undef CODEINK_CALLBACKS
 class Addin final:public IDTExtensibility2,public IRibbonExtensibility{
-    volatile LONG refs;Ref app,ribbon;Options opts;Catalog languages,themes;bool busy;wchar_t status[256];
+    volatile LONG refs;Ref app,ribbon;Options opts;Catalog languages,themes;FontCatalog fonts;bool busy;wchar_t status[256];
 public:
     Addin():refs(1),busy(false){InterlockedIncrement(&gObjects);copystr(status,256,L"尚未执行代码操作。");}
     ~Addin(){InterlockedDecrement(&gObjects);}
@@ -43,7 +60,7 @@ public:
         if(id==CCustomUI){if(!result)return E_POINTER;result->vt=VT_BSTR;return GetCustomUI(nullptr,&result->bstrVal);}
         if(id==CRibbonLoad){if(n<1)return DISP_E_BADPARAMCOUNT;ribbon.set(asDispatch(&a[0]));return S_OK;}
         if(id==CHighlight||id==CFormat||id==CTable||id==CPlain||id==CClipboard||id==CBorders){run(id==CHighlight?Action::Color:id==CFormat?Action::Format:id==CTable?Action::Table:id==CPlain?Action::Plain:id==CBorders?Action::Borders:Action::Clipboard);return S_OK;}
-        if((id>=CLanguage&&id<=CLogging)||id==CBasicCleanup||id==CIndentWidth){if(n<2)return DISP_E_BADPARAMCOUNT;change(id,a,n);return S_OK;}
+        if((id>=CLanguage&&id<=CMaxColumnRows)||id==CBasicCleanup||id==CIndentWidth){if(n<2)return DISP_E_BADPARAMCOUNT;change(id,a,n);return S_OK;}
         if(id==CImportTheme){importTheme();return S_OK;}if(id==CHelp){help();return S_OK;}if(id==CAbout){about();return S_OK;}
         if(id==CStatus){showStatus();return S_OK;}
         if(id==CAppearanceSettings||id==CLayoutSettings){settings(id==CAppearanceSettings);return S_OK;}
@@ -54,32 +71,25 @@ public:
             case GFontFamily:value=opts.font;break;case GFontSize:decimalText(text,opts.fontSize);value=text;break;
             case GSpacing:decimalText(text,opts.spacing,opts.spacingPoints?L" pt":L" 倍");value=text;break;
             case GBackground:integer=opts.background;break;
-            case GBackgroundColor:{const wchar_t*hex=L"0123456789ABCDEF";text[0]='#';for(int i=0;i<6;++i)text[i+1]=hex[(opts.backgroundColor>>(20-i*4))&15];text[7]=0;value=text;break;}
             case GNumbers:boolean=true;integer=opts.lineNumbers;break;case GFirstLine:number(text,opts.firstLine);value=text;break;
-            case GTableRead:integer=opts.tableRead;break;case GMerge:boolean=true;integer=opts.merge;break;case GReplace:boolean=true;integer=opts.replace;break;case GThemeStyles:boolean=true;integer=opts.themeStyles;break;
+            case GReplace:boolean=true;integer=opts.replace;break;
             case GOutputMode:integer=opts.outputMode;break;
             case GWindowFrame:boolean=true;integer=opts.windowFrame;break;
-            case GWindowButtons:boolean=true;integer=opts.windowButtons;break;
-            case GWindowShadow:boolean=true;integer=opts.windowShadow;break;
-            case GWindowPadding:decimalText(text,opts.windowPadding);value=text;break;
-            case GWindowRadius:decimalText(text,opts.windowRadius);value=text;break;
-            case GWindowFill:integer=opts.windowFill;break;
-            case GWindowColor:{const wchar_t*hex=L"0123456789ABCDEF";text[0]='#';for(int i=0;i<6;++i)text[i+1]=hex[(opts.windowColor>>(20-i*4))&15];text[7]=0;value=text;break;}
             case GBorderVertical:boolean=true;integer=opts.borderVertical;break;
             case GBorderHorizontal:boolean=true;integer=opts.borderHorizontal;break;
             case GBorderOuter:boolean=true;integer=opts.borderOuter;break;
             case GLogging:boolean=true;integer=opts.logging;break;
-            case GWindowEnabled:boolean=true;integer=!busy&&opts.windowFrame;break;
             case GBackgroundEnabled:boolean=true;integer=!busy&&!opts.windowFrame;break;
-            case GBorderEnabled:boolean=true;integer=!busy&&opts.outputMode==0;break;
-            case GWindowLabel:value=L"模拟窗口";break;
             case GNumbersEnabled:boolean=true;integer=!busy&&opts.lineNumbers;break;
-            case GIndentWidth:integer=opts.indentWidth-1;break;
+            case GIndentWidth:number(text,opts.indentWidth);catstr(text,64,L" 空格");value=text;break;
             case GIndentEnabled:boolean=true;integer=!busy&&opts.basicCleanup;break;
             case GBasicCleanup:boolean=true;integer=opts.basicCleanup;break;
+            case GColumnCount:case GMaxColumnRows:number(text,id==GColumnCount?opts.columnCount:opts.maxColumnRows);value=text;break;
             case GLanguageCount:integer=languages.count();break;case GLanguageLabel:if(n<2)return DISP_E_BADPARAMCOUNT;value=languages.label(asLong(&a[0]));break;
             case GThemeCount:integer=themes.count()+(opts.themePath[0]?1:0);break;case GThemeLabel:if(n<2)return DISP_E_BADPARAMCOUNT;value=asLong(&a[0])==themes.count()?L"已导入的主题":themes.label(asLong(&a[0]));break;
-            case GEnabled:boolean=true;integer=!busy;break;case GStatus:value=status;break;default:return DISP_E_MEMBERNOTFOUND;
+            case GFontCount:if(!fonts.count())fonts.load(app);integer=fonts.count();break;
+            case GFontLabel:if(n<2)return DISP_E_BADPARAMCOUNT;value=fonts.label(asLong(&a[0]));break;
+            case GEnabled:boolean=true;integer=!busy;break;default:return DISP_E_MEMBERNOTFOUND;
         }
         if(value){result->vt=VT_BSTR;result->bstrVal=SysAllocString(value);return result->bstrVal?S_OK:E_OUTOFMEMORY;}
         result->vt=boolean?VT_BOOL:VT_I4;if(boolean)result->boolVal=integer?-1:0;else result->lVal=integer;return S_OK;
@@ -100,6 +110,9 @@ private:
         opts.lineNumbers=readNumber(CONFIG_KEY,L"LineNumbers",0)!=0;opts.merge=readNumber(CONFIG_KEY,L"Merge",0)!=0;opts.replace=readNumber(CONFIG_KEY,L"Replace",0)!=0;opts.themeStyles=readNumber(CONFIG_KEY,L"ThemeStyles",0)!=0;opts.firstLine=bound(readNumber(CONFIG_KEY,L"FirstLine",1),1,999999);
         opts.basicCleanup=readNumber(CONFIG_KEY,L"BasicCleanup",1)!=0;
         opts.indentWidth=bound(readNumber(CONFIG_KEY,L"IndentWidth",4),1,8);
+        opts.columnCount=bound(readNumber(CONFIG_KEY,L"ColumnCount",0),0,200);
+        opts.maxColumnRows=bound(readNumber(CONFIG_KEY,L"MaxColumnRows",0),0,200);
+        opts.columnOverflow=bound(readNumber(CONFIG_KEY,L"ColumnOverflow",0),0,2);
         opts.outputMode=bound(readNumber(CONFIG_KEY,L"OutputMode",0),0,1);
         opts.windowFrame=readNumber(CONFIG_KEY,L"WindowFrame",0)!=0;
         opts.windowButtons=readNumber(CONFIG_KEY,L"WindowButtons",1)!=0;
@@ -119,6 +132,7 @@ private:
         regNumber(CONFIG_KEY,L"BackgroundMode",opts.background);regNumber(CONFIG_KEY,L"BackgroundColor",opts.backgroundColor);regNumber(CONFIG_KEY,L"TableRead",opts.tableRead);regNumber(CONFIG_KEY,L"LineNumbers",opts.lineNumbers);regNumber(CONFIG_KEY,L"Merge",opts.merge);regNumber(CONFIG_KEY,L"Replace",opts.replace);regNumber(CONFIG_KEY,L"ThemeStyles",opts.themeStyles);regNumber(CONFIG_KEY,L"FirstLine",opts.firstLine);
         regNumber(CONFIG_KEY,L"BasicCleanup",opts.basicCleanup);
         regNumber(CONFIG_KEY,L"IndentWidth",opts.indentWidth);
+        regNumber(CONFIG_KEY,L"ColumnCount",opts.columnCount);regNumber(CONFIG_KEY,L"MaxColumnRows",opts.maxColumnRows);regNumber(CONFIG_KEY,L"ColumnOverflow",opts.columnOverflow);
         regNumber(CONFIG_KEY,L"OutputMode",opts.outputMode);regNumber(CONFIG_KEY,L"WindowFrame",opts.windowFrame);
         regNumber(CONFIG_KEY,L"WindowButtons",opts.windowButtons);regNumber(CONFIG_KEY,L"WindowShadow",opts.windowShadow);
         regNumber(CONFIG_KEY,L"WindowPadding100",(DWORD)(opts.windowPadding*100+0.5f));regNumber(CONFIG_KEY,L"WindowRadius100",(DWORD)(opts.windowRadius*100+0.5f));
@@ -131,39 +145,36 @@ private:
         switch(id){
             case CLanguage:ok=t&&slen(t)<256;if(ok){const wchar_t*resolved=languages.resolve(t);ok=slen(resolved)<128;if(ok)copystr(opts.language,128,resolved);}break;
             case CTheme:ok=t&&slen(t)<256;if(ok){const wchar_t*resolved=same(t,L"已导入的主题")?L"__custom__":themes.resolve(t);ok=slen(resolved)<128;if(ok)copystr(opts.theme,128,resolved);}break;
-            case CFontFamily:ok=t&&(samei(t,L"Consolas")||samei(t,L"Cascadia Mono")||samei(t,L"Courier New"));if(ok)copystr(opts.font,64,t);break;
+            case CFontFamily:{if(!fonts.count())fonts.load(app);const wchar_t*font=fonts.find(t);ok=font!=nullptr;if(ok)copystr(opts.font,64,font);break;}
             case CFontSize:ok=codeink::parseDecimal((const codeink::Ch*)t,v,end)&&(!t[end]||samei(t+end,L"pt")||same(t+end,L"磅"))&&v>=6&&v<=96;if(ok)opts.fontSize=v;break;
             case CSpacing:{ok=codeink::parseDecimal((const codeink::Ch*)t,v,end);bool points=ok&&(samei(t+end,L"pt")||same(t+end,L"磅"));ok=ok&&(points||!t[end]||samei(t+end,L"x")||same(t+end,L"倍"))&&(points?(v>=6&&v<=200):(v>=0.8f&&v<=3));if(ok){opts.spacing=v;opts.spacingPoints=points;}break;}
             case COutputMode:if(n<3)return;opts.outputMode=bound(asLong(&a[0]),0,1);break;
+            case CColumnCount:case CMaxColumnRows:{
+                int limit=0;bool valid=t&&t[0];
+                for(int i=0;valid&&t[i];++i){if(i>=3||t[i]<'0'||t[i]>'9'){valid=false;break;}limit=limit*10+t[i]-'0';}
+                if(!valid||limit>200){invalidate();return;}
+                if(id==CColumnCount)opts.columnCount=limit;else opts.maxColumnRows=limit;break;}
             case CWindowFrame:opts.windowFrame=asLong(&a[0])!=0;break;
-            case CWindowButtons:opts.windowButtons=asLong(&a[0])!=0;break;
-            case CWindowShadow:opts.windowShadow=asLong(&a[0])!=0;break;
-            case CWindowPadding:case CWindowRadius:ok=codeink::parseDecimal((const codeink::Ch*)t,v,end)&&(!t[end]||samei(t+end,L"pt")||same(t+end,L"磅"))&&v>=0&&v<=(id==CWindowPadding?60:40);if(ok){if(id==CWindowPadding)opts.windowPadding=v;else opts.windowRadius=v;}break;
-            case CWindowFill:if(n<3)return;opts.windowFill=bound(asLong(&a[0]),0,1);break;
-            case CWindowColor:{ok=t&&slen(t)==7&&t[0]=='#';DWORD color=0;for(int i=1;ok&&i<7;++i){wchar_t c=t[i];int d=c>='0'&&c<='9'?c-'0':c>='A'&&c<='F'?c-'A'+10:c>='a'&&c<='f'?c-'a'+10:-1;if(d<0)ok=false;else color=(color<<4)|d;}if(ok){opts.windowColor=color;opts.windowFill=1;}break;}
             case CBackground:if(n<3)return;opts.background=bound(asLong(&a[0]),0,2);break;
-            case CBackgroundColor:{ok=t&&slen(t)==7&&t[0]=='#';DWORD color=0;for(int i=1;ok&&i<7;++i){wchar_t c=t[i];int d=c>='0'&&c<='9'?c-'0':c>='A'&&c<='F'?c-'A'+10:c>='a'&&c<='f'?c-'a'+10:-1;if(d<0)ok=false;else color=(color<<4)|d;}if(ok){opts.backgroundColor=color;opts.background=2;}break;}
             case CBorderVertical:opts.borderVertical=asLong(&a[0])!=0;break;
             case CBorderHorizontal:opts.borderHorizontal=asLong(&a[0])!=0;break;
             case CBorderOuter:opts.borderOuter=asLong(&a[0])!=0;break;
             case CLogging:opts.logging=asLong(&a[0])!=0;break;
-            case CIndentWidth:if(n<3)return;opts.indentWidth=bound(asLong(&a[0]),0,7)+1;break;
+            case CIndentWidth:
+                if(!codeink::parseDecimal((const codeink::Ch*)t,v,end)||(!same(t+end,L"空格")&&t[end])||v<1||v>8||v!=(int)v){invalidate();return;}
+                opts.indentWidth=(int)v;break;
             case CBasicCleanup:opts.basicCleanup=asLong(&a[0])!=0;break;
             case CNumbers:opts.lineNumbers=asLong(&a[0])!=0;break;
             case CFirstLine:ok=codeink::parseDecimal((const codeink::Ch*)t,v,end)&&!t[end]&&v>=1&&v<=999999&&v==(int)v;if(ok)opts.firstLine=(int)v;break;
-            case CTableRead:if(n<3)return;opts.tableRead=bound(asLong(&a[0]),0,2);break;
-            case CMerge:opts.merge=asLong(&a[0])!=0;break;case CReplace:opts.replace=asLong(&a[0])!=0;break;case CThemeStyles:opts.themeStyles=asLong(&a[0])!=0;break;
+            case CReplace:opts.replace=asLong(&a[0])!=0;break;
         }
         if(!ok){
             const wchar_t* hint=L"输入内容无效，请检查后重试。原设置已保留。";
             switch(id){
                 case CFontSize:hint=L"字号请输入 6～96 之间的数值，单位为磅。原设置已保留。";break;
                 case CSpacing:hint=L"行距请输入 0.8～3 倍，或 6～200 pt，例如 1.2 倍、24 pt。原设置已保留。";break;
-                case CFontFamily:hint=L"请选择 Consolas、Cascadia Mono 或 Courier New。原字体已保留。";break;
-                case CBackgroundColor:case CWindowColor:hint=L"颜色请输入 # 和六位十六进制数字，例如 #F3F3F6。原颜色已保留。";break;
+                case CFontFamily:hint=fonts.count()?L"请选择列表中的等宽字体。原字体已保留。":L"未能读取 PowerPoint 的等宽字体列表，请重新打开 PowerPoint 后重试。原字体已保留。";break;
                 case CFirstLine:hint=L"起始行号请输入 1～999999 之间的整数。原设置已保留。";break;
-                case CWindowPadding:hint=L"内边距请输入 0～60 pt。原设置已保留。";break;
-                case CWindowRadius:hint=L"圆角请输入 0～40 pt。原设置已保留。";break;
             }
             show(GetForegroundWindow(),hint,MB_OK|MB_ICONWARNING);
         }
@@ -171,7 +182,12 @@ private:
         if(id==CLogging&&opts.logging)logEvent(L"Diagnostic logging explicitly enabled");
     }
     void run(Action action){
-        if(busy||!app)return;busy=true;invalidate();HRESULT hr=E_FAIL;
+        if(busy||!app)return;
+        if(action==Action::Format||action==Action::Table||action==Action::Clipboard){
+            if(!fonts.count())fonts.load(app);
+            if(!fonts.find(opts.font)){show(GetForegroundWindow(),fonts.count()?L"当前字体已不可用。请在字体列表中重新选择等宽字体，再执行排版。":L"未能读取 PowerPoint 的等宽字体列表，请重新打开 PowerPoint 后重试。",MB_OK|MB_ICONWARNING);return;}
+        }
+        busy=true;invalidate();HRESULT hr=E_FAIL;
         wchar_t*error=(wchar_t*)alloc(1600*2);if(!error){busy=false;invalidate();return;}
         {Progress progress(GetForegroundWindow(),L"CodeInk · 处理代码");hr=executeAction(app,opts,action,status,256,error,1600,progress);}
         if(failed(hr)){wchar_t hex[16];hexcode(hex,(DWORD)hr);catstr(error,1600,L"\r\n\r\n错误码：");catstr(error,1600,hex);show(GetForegroundWindow(),error,MB_OK|MB_ICONWARNING);copystr(status,256,error);logEvent(L"CodeInk action failed",hr);}

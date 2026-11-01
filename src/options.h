@@ -7,8 +7,9 @@ struct Options {
     bool lineNumbers,merge,replace,themeStyles,basicCleanup;
     bool borderVertical,borderHorizontal,borderOuter,logging;
     int firstLine,indentWidth;
+    int columnCount,maxColumnRows,columnOverflow; // 0 = automatic/unlimited; overflow: grow columns, grow rows, strict.
     int outputMode,windowFill; // 0: native table / theme; 1: grouped text boxes / custom.
     bool windowFrame,windowButtons,windowShadow;
     float windowPadding,windowRadius;DWORD windowColor;
-    Options(){copystr(language,128,L"cpp");copystr(theme,128,L"github-light");themePath[0]=0;copystr(font,64,L"Consolas");fontSize=18;spacing=1.2f;spacingPoints=false;background=0;backgroundColor=0xFFFFFF;tableRead=0;borderVertical=true;borderHorizontal=false;borderOuter=false;logging=false;lineNumbers=false;merge=false;replace=false;basicCleanup=true;themeStyles=false;firstLine=1;indentWidth=4;outputMode=0;windowFrame=false;windowButtons=true;windowShadow=true;windowPadding=14;windowRadius=8;windowFill=0;windowColor=0x282C34;}
+    Options(){copystr(language,128,L"cpp");copystr(theme,128,L"github-light");themePath[0]=0;copystr(font,64,L"Consolas");fontSize=18;spacing=1.2f;spacingPoints=false;background=0;backgroundColor=0xFFFFFF;tableRead=0;borderVertical=true;borderHorizontal=false;borderOuter=false;logging=false;lineNumbers=false;merge=false;replace=false;basicCleanup=true;themeStyles=false;firstLine=1;indentWidth=4;columnCount=0;maxColumnRows=0;columnOverflow=0;outputMode=0;windowFrame=false;windowButtons=true;windowShadow=true;windowPadding=14;windowRadius=8;windowFill=0;windowColor=0x282C34;}
 };

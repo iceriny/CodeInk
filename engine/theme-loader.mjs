@@ -1,6 +1,5 @@
 import { readFileSync, statSync } from 'node:fs';
 import { resolve, dirname, isAbsolute, extname } from 'node:path';
-import { createHash } from 'node:crypto';
 
 /** Load VS Code JSON/JSONC theme data; never execute a VS Code extension.
  * Relative `include` inherits colors and tokenColors. Semantic tokens require a
@@ -35,9 +34,8 @@ export function loadThemeFile(filename, parseJSONC) {
   }
   const result = read(filename, 0);
   delete result.include;
-  // Stable internal name avoids collisions with bundled themes. This is process
-  // state only; no private metadata is attached to any PowerPoint object.
-  result.name = 'codeink-custom-' + createHash('sha256').update(JSON.stringify(result)).digest('hex').slice(0, 12);
+  // Each highlight owns a fresh highlighter with one custom theme.
+  result.name = 'codeink-custom';
   if (!result.tokenColors.length) throw new Error('这个文件没有 TextMate tokenColors，不能作为语法染色主题。');
   return result;
 }

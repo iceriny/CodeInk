@@ -5,7 +5,7 @@ namespace {
 enum Control {
     Background = 100, BackgroundColor, ThemeStyles,
     Window = 110, Buttons, Shadow, Fill, WindowColor, Padding, Radius,
-    ReadTable = 120, Merge
+    ReadTable = 120, Merge, ColumnOverflow
 };
 constexpr UINT InitDialog = 0x110, Command = 0x111, Close = 0x10, Destroy = 0x82;
 constexpr UINT AddString = 0x143, SetSelection = 0x14E, GetSelection = 0x147;
@@ -77,6 +77,9 @@ void initialize(HWND window, const State& state) {
         const wchar_t* modes[] = {L"自动识别首列行号", L"读取全部单元格", L"将首列视为行号"};
         combo(window, ReadTable, modes, 3, o.tableRead);
         CheckDlgButton(window, Merge, o.merge);
+        const wchar_t* overflow[] = {L"增加栏数", L"增加每栏行数", L"严格限制"};
+        combo(window, ColumnOverflow, overflow, 3, o.columnOverflow);
+        enable(window, ColumnOverflow, o.columnCount && o.maxColumnRows);
         return;
     }
     const wchar_t* backgrounds[] = {L"无背景", L"跟随主题", L"自定义颜色"};
@@ -115,7 +118,7 @@ bool readNumber(HWND window, int id, float& value, float maximum, const wchar_t*
 bool save(HWND window, State& state) {
     Options& o = state.draft;
     if (!state.appearance) {
-        o.tableRead = selection(window, ReadTable); o.merge = checked(window, Merge);
+        o.tableRead = selection(window, ReadTable); o.merge = checked(window, Merge); o.columnOverflow = selection(window, ColumnOverflow);
         return true;
     }
     o.windowFrame = checked(window, Window); o.themeStyles = checked(window, ThemeStyles);
@@ -162,13 +165,15 @@ void appearanceTemplate(Template& t) {
     t.finish(250);
 }
 void layoutTemplate(Template& t) {
-    t.begin(L"生成选项 · CodeInk", 190);
+    t.begin(L"生成选项 · CodeInk", 254);
     t.item(0x80, -1, L"读取现有表格", 12, 10, 330, 64, 7);
     t.label(L"读取方式", 24, 30, 54); t.combo(ReadTable, 86, 27, 240);
     t.label(L"首列数字属于代码或数据时，请选择“读取全部单元格”。", 24, 52, 302, 14);
     t.item(0x80, -1, L"多选对象", 12, 84, 330, 44, 7);
     t.check(Merge, L"将多个选中对象合并为一个代码块", 24, 102, 300);
-    t.finish(160, L"保存后，下次生成或粘贴时生效。");
+    t.item(0x80, -1, L"分栏", 12, 138, 330, 54, 7);
+    t.label(L"超出容量时", 24, 158, 76); t.combo(ColumnOverflow, 116, 155, 210);
+    t.finish(226, L"保存后，下次生成或粘贴时生效。");
 }
 } // namespace
 
